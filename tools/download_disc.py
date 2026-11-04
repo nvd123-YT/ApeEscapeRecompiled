@@ -21,7 +21,7 @@ from urllib.request import Request, urlopen
 DROPBOX_API_PATH = "/ApeEscapeWii-private-assets/Ape Escape (USA).chd"
 MIN_CHD_BYTES = 10 * 1024 * 1024
 CHD_MAGIC = b"MComprHD"
-DEFAULT_ASSETS_REPO = "NVDEMU/apeescapeprivateassets"
+DEFAULT_ASSETS_REPO = "nvd123-YT/apeescapeprivateassets"
 DEFAULT_ASSETS_TAG = "thing"
 DEFAULT_ASSET_FILENAME = "Ape.Escape.USA.chd"
 

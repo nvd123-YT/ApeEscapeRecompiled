@@ -96,7 +96,7 @@ jobs:
       - name: Download private build-time game image
         env:
           GAME_ASSETS_TOKEN: ${{ secrets.GAME_ASSETS_TOKEN }}
-          GAME_ASSETS_REPO: NVDEMU/apeescapeprivateassets
+          GAME_ASSETS_REPO: nvd123-YT/apeescapeprivateassets
           GAME_ASSETS_TAG: thing
           GAME_ASSETS_FILENAME: Ape.Escape.USA.chd
         run: |
