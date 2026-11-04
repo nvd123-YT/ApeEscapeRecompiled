@@ -12,9 +12,9 @@
 <p align="center">
   A fan-made, native Windows/macOS/Linux project for revisiting Spike's first monkey-catching adventure.
   <br>
-  <a href="https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases">Get builds</a>
+  <a href="https://github.com/nvd123-YT/ApeEscapeRecompiled/releases">Get builds</a>
   ·
-  <a href="https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/actions">Build status</a>
+  <a href="https://github.com/nvd123-YT/ApeEscapeRecompiled/actions">Build status</a>
   ·
   <a href="CHANGELOG.md">Changelog</a>
   ·
@@ -33,7 +33,7 @@ The project is still a work in progress, but a 100% playthrough can be verified!
 
 ## Choose your platform
 
-Nightly packages are produced by GitHub Actions when the build succeeds. Visit [Releases](https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases) for the assets currently available.
+Nightly packages are produced by GitHub Actions when the build succeeds. Visit [Releases](https://github.com/nvd123-YT/ApeEscapeRecompiled/releases) for the assets currently available.
 
 | Platform | Package to look for | Notes |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ The dashboard's **Quick Tools** can open the app-data folder, save folder, or se
 
 Use **Check for Nightly Updates** in supported Windows/macOS builds to check this repository's Nightly release. Linux users can download the AppImage directly from Releases. The helper ships a verified HTTPS CA bundle for its standalone Python runtime, chooses the matching platform package, checks its SHA-256 checksum, and waits for the game application to close before installation. HTTPS certificate and hostname verification remain enabled. The Windows updater preserves saves and player configuration—including the selected disc, BIOS path, keyboard/controller settings, launcher preferences and mod enabled-state—while replacing shipped runtime files. macOS user data remains separate from the app bundle.
 
-Older builds made before the updater was added cannot run an in-app update. Install one recent package from [Releases](https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases) first. If a suitable asset or a valid checksum is unavailable, use the release page instead of forcing an install.
+Older builds made before the updater was added cannot run an in-app update. Install one recent package from [Releases](https://github.com/nvd123-YT/ApeEscapeRecompiled/releases) first. If a suitable asset or a valid checksum is unavailable, use the release page instead of forcing an install.
 
 ## How the project is built
 

@@ -610,7 +610,7 @@ jobs:
           retention-days: 14
 
   normalize-nightly-release:
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && github.event.head_commit.message != 'release: publish v2.0.0'
     runs-on: ubuntu-latest
     steps:
       - name: Promote the existing Nightly release
@@ -670,7 +670,7 @@ jobs:
           nightly = os.environ["BUILD_REF"] == "refs/heads/master"
           manifest = {
               "schema_version": 1,
-              "repository": "NVDEMU/ApeEscapeRecomp-MacWindowsLinux",
+              "repository": "nvd123-YT/ApeEscapeRecompiled",
               "channel": "nightly" if nightly else "stable",
               "tag": "macos-nightly" if nightly else os.environ["BUILD_REF"].removeprefix("refs/tags/"),
               "version": version,
@@ -691,6 +691,7 @@ jobs:
           python3 tools/render_release_notes.py --ref "$RELEASE_REF" --version-file packaging/release/VERSION --changelog CHANGELOG.md --output release-notes.md
 
       - name: Publish or update the macOS release
+        if: github.event.head_commit.message != 'release: publish v2.0.0'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'macos-nightly' }}
@@ -707,3 +708,50 @@ jobs:
             dist/SHA256SUMS-windows-x64.txt
             dist/SHA256SUMS-linux-x86_64.txt
             dist/nightly-manifest.json
+
+      - name: Render v2.0.0 release notes and stable manifest
+        if: github.ref == 'refs/heads/master' && github.event.head_commit.message == 'release: publish v2.0.0'
+        env:
+          BUILD_COMMIT: ${{ github.sha }}
+          BUILD_RUN_ID: ${{ github.run_id }}
+          BUILD_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          python3 tools/render_release_notes.py --ref refs/tags/macos-v2.0.0 --version-file packaging/release/VERSION --changelog CHANGELOG.md --output versioned-release-notes.md
+          python3 - <<'PY'
+          import datetime, json, os
+          from pathlib import Path
+          version = Path("packaging/release/VERSION").read_text(encoding="utf-8").strip()
+          manifest = {
+              "schema_version": 1,
+              "repository": "nvd123-YT/ApeEscapeRecompiled",
+              "channel": "stable",
+              "tag": "macos-v2.0.0",
+              "version": version,
+              "commit": os.environ["BUILD_COMMIT"],
+              "run_id": os.environ["BUILD_RUN_ID"],
+              "run_number": os.environ["BUILD_RUN_NUMBER"],
+              "built_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          }
+          Path("dist/release-manifest.json").write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+          print("Wrote stable release manifest for", manifest["commit"][:12])
+          PY
+
+      - name: Publish Ape Escape Recompiled v2.0.0
+        if: github.ref == 'refs/heads/master' && github.event.head_commit.message == 'release: publish v2.0.0'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: macos-v2.0.0
+          name: Ape Escape Recompiled — v2.0.0
+          prerelease: false
+          make_latest: true
+          fail_on_unmatched_files: true
+          body_path: versioned-release-notes.md
+          files: |
+            dist/*.zip
+            dist/*.dmg
+            dist/*.AppImage
+            dist/SHA256SUMS-macos-*.txt
+            dist/SHA256SUMS-windows-x64.txt
+            dist/SHA256SUMS-linux-x86_64.txt
+            dist/release-manifest.json

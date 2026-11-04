@@ -50,7 +50,7 @@ def render_notes(changelog: str, ref: str, current_version: str) -> str:
         "signed and are not notarized. Linux AppImage updates are manual.\n\n"
         "The original game disc image and retail PlayStation BIOS are not included. "
         "The packaged OpenBIOS is MIT-licensed.\n\n"
-        "See the full [CHANGELOG.md](https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/master/CHANGELOG.md)."
+        "See the full [CHANGELOG.md](https://github.com/nvd123-YT/ApeEscapeRecompiled/blob/master/CHANGELOG.md)."
     )
     return f"# {title}\n\n{section}\n\n{footer}\n"
 

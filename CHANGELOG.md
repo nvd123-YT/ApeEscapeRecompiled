@@ -50,6 +50,39 @@ All notable changes to Ape Escape Recompiled — Enhanced Edition are recorded h
 - Corrected the pinned launcher’s malformed SDL3 preprocessor guard, which had stopped Windows, macOS, and Linux builds before release packaging.
 - Added independent GitHub Actions workflow validation and security auditing with actionlint and zizmor; zizmor findings are advisory while existing workflows are reviewed.
 
+## [2.0.0] - 2026-11-04
+
+### New launcher tools
+- **Ape Escape OST Player:** browse the soundtrack listing, download individual tracks on demand, play/pause, skip, seek, and save volume. Tracks are cached per user and are not bundled with releases.
+- **Cached soundtrack shuffle:** optionally play and shuffle tracks already in the local cache, without downloading music during startup.
+- **Setup Doctor:** diagnose the selected disc and disc identity, custom BIOS path, application-data write access, and save-backup availability; copy a diagnostic report and jump to repair actions.
+- **Controller Test Lab:** inspect live gamepad buttons, sticks, and triggers, with an optional rumble test.
+- **Expanded Save Protection Center:** browse timestamped backups, restore a selected snapshot, export a backup to another folder, and set retention from 5 to 50 snapshots.
+- **Mod Manager improvements:** search and filter features by enabled, disabled, experimental, and needs-attention status; apply confirmed Original Experience, Visual Enhancements, and Challenge Run presets.
+- **Update & Release Center:** see installed build metadata and access the Nightly updater, release downloads, and changelog in one place.
+- **Mod Developer Toolkit:** open a copyable native plugin template and developer guide from the launcher. CI syntax-checks the example plugin and checks its launcher integration.
+- **Dedicated accessibility page:** adjust launcher text size, high contrast, control size, focus targets, and background visual effects.
+
+### Gameplay, graphics, and performance
+- **PGXP improvements:** add renderer depth-buffer and seam-expansion support, more precise culling, and more faithful handling of relevant GTE projection math. PGXP remains optional; this targets specific precision and seam issues and does not claim to eliminate every wobble, texture warp, or visual artifact.
+- **Safer interpolated rendering:** restrict experimental frame replay to active gameplay and avoid replaying title, loading, briefing, flyover, warp-in, and transition frames.
+- **Crowded-gameplay performance:** restore a narrowly gated guest-cycle optimization for the active gameplay phase while keeping VBlank, timers, CD, SPU, and DMA on the original PlayStation clock. This is a targeted optimization, not a fixed-frame-rate guarantee.
+- **Widescreen remains experimental:** 4:3 remains the reference presentation; widescreen can still expose geometry, background, or culling artifacts.
+
+### Reliability and development
+- Stop cached OST playback before the game launches or relaunches, preventing music from carrying over onto the title screen.
+- Make save restoration safer by creating a safety snapshot first and delaying backup-retention pruning until the selected restore has completed.
+- Improve Mod Manager selection behavior and require confirmation before bulk Enable All / Disable All actions.
+- Fix launcher folder shortcuts and conflicting UI control IDs.
+- Add changed-line C/C++ formatting checks and independent GitHub Actions workflow validation/security auditing.
+- Fix release-manifest generation and a pinned launcher SDL3 guard that could stop cross-platform packaging before the build completed.
+
+### Release notes
+- Release packages are built for Windows x64, macOS Apple Silicon and Intel, and Linux x86_64 when their respective build jobs succeed.
+- The original Ape Escape (USA, SCUS-94423) disc image and retail PlayStation BIOS are not included. Supply your own legally obtained game image; OpenBIOS is included as the default alternative.
+- macOS packages are ad-hoc signed and are not notarized. Linux AppImage updates remain manual.
+- Soundtrack audio is not bundled. Tracks are downloaded only when selected and cached in the per-user data folder.
+
 ## [1.0.0] - 2026-10-17
 
 ### Added
