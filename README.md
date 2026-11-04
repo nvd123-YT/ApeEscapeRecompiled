@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">Ape Escape Recompiled — Enhanced Edition</h1>
-![Listed on PlayPorted](https://playported.com/badge.svg)](https://playported.com/ports/1179-ape-escape/)
+[![Listed on PlayPorted](https://playported.com/badge.svg)](https://playported.com/ports/1179-ape-escape/)
 ![PlayStation](https://img.shields.io/badge/PlayStation-003791?style=for-the-badge&logo=playstation&logoColor=white))
 
 <p align="center">
