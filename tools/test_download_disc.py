@@ -16,7 +16,7 @@ from tools.download_disc import CHD_MAGIC, MIN_CHD_BYTES, find_release_asset_id,
 
 class DownloadDiscTests(unittest.TestCase):
     def test_private_release_defaults_match_published_asset(self):
-        self.assertEqual(download_disc.DEFAULT_ASSETS_REPO, "NVDEMU/apeescapeprivateassets")
+        self.assertEqual(download_disc.DEFAULT_ASSETS_REPO, "nvd123-YT/apeescapeprivateassets")
         self.assertEqual(download_disc.DEFAULT_ASSETS_TAG, "thing")
         self.assertEqual(download_disc.DEFAULT_ASSET_FILENAME, "Ape.Escape.USA.chd")
 
