@@ -4,9 +4,10 @@
 
 <h1 align="center">Ape Escape Recompiled — Enhanced Edition</h1>
 
-[![Listed on PlayPorted](https://playported.com/badge.svg)](https://playported.com/ports/1179-ape-escape/)
-
-![Playstation](https://img.shields.io/badge/playstation-%230070D1.svg?style=for-the-badge&logo=playstation&logoColor=white)
+<p align="center">
+  <a href="https://playported.com/ports/1179-ape-escape/"><img src="https://playported.com/badge.svg" alt="Listed on PlayPorted"></a>
+  <img src="https://img.shields.io/badge/playstation-%230070D1.svg?style=for-the-badge&logo=playstation&logoColor=white" alt="PlayStation">
+</p>
 
 <p align="center">
   A fan-made, native Windows/macOS/Linux project for revisiting Spike's first monkey-catching adventure.
