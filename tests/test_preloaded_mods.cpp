@@ -35,10 +35,11 @@ void no_op_plugin() {}
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 3) return fail("expected two mod roots");
+  if (argc != 3)
+    return fail("expected two mod roots");
 
-    const fs::path source(argv[1]);
-    const fs::path development(argv[2]);
+  const fs::path source(argv[1]);
+  const fs::path development(argv[2]);
     const fs::path root =
         fs::temp_directory_path() / "apeescape-preloaded-mods-test";
     std::error_code ec;
@@ -46,8 +47,8 @@ int main(int argc, char** argv) {
     fs::copy(source, root, fs::copy_options::recursive);
     const fs::path release_frame_smoothing =
         source / "packages/ape.enhancement.frame-smoothing";
-    if (fs::exists(release_frame_smoothing))
-        return fail("frame smoothing must be development-only");
+  if (fs::exists(release_frame_smoothing))
+    return fail("frame smoothing must be development-only");
     const fs::path development_packages = development / "packages";
     fs::copy(development_packages, root / "packages",
              fs::copy_options::recursive);
@@ -432,7 +433,7 @@ int main(int argc, char** argv) {
     }
 
     fs::remove_all(root, ec);
-    std::cout << "Ape Escape catalog: 10 release packages + 1 development-only "
-                 "interpolation package; gameplay features remain opt-in.\n";
+  std::cout << "Ape Escape catalog: 10 release packages + 1 development-only "
+               "interpolation package; gameplay features remain opt-in.\n";
     return 0;
 }
