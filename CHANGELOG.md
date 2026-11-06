@@ -5,6 +5,10 @@ All notable changes to Ape Escape Recompiled — Enhanced Edition are recorded h
 
 ## [Unreleased]
 
+### Added
+- Updated the shared PSXRecomp runtime and launcher to the November 5 upstream graphics/settings work. The Mods page now has independent PGXP geometry and perspective-texture controls, PS1 dithering modes, dynamic resolution and supersampling controls, optional FXAA/bloom/custom `.pfx` post-processing, `.psxmod` package import, and remappable quick-save/load actions.
+- Added a title-owned Internal Resolution package that exposes fixed 1x–32x scales, 720p through 8K, Match display, Auto/dynamic resolution, and supersampling while defaulting to Game default so Ape Escape retains its existing 4K baseline. The new display controls are host-only; gameplay-changing mod defaults remain unchanged.
+
 ### Fixed
 - Bumped PSXRecomp to `4102438ab4c5aadf010878029d0324ef6382e521`, the narrow upstream revision containing the PGXP depth-buffer and seam-expansion renderer, then enabled `pgxp_depth_buffer = true` and `pgxp_seam = "wide"` for high-resolution rendering. Precise culling is enabled only when the optional PGXP mod itself is selected. These changes target remaining terrain cracks; they are not a claim that cutscene wobble, every texture warp, or shaking with PGXP disabled is fixed until matched visual captures confirm it.
 - Configured the high-coverage PGXP hook build for dataflow-only vertex precision and exact GTE projection (`pgxp_position_fallback = false`, `pgxp_preserve_projection = true`, `pgxp_tolerance = -1.0`) behind the single default-off PGXP mod switch. This is a source-level correction; live visual confirmation of wobble, seams, and texture warping is still outstanding.

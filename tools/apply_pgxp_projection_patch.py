@@ -12,7 +12,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-PINNED_FRAMEWORK = "ffbd9d1ca4ee698866a2a9d7c58c3cc29a77f111"
+PINNED_FRAMEWORK = "395ed4ffb5ca07b581174722993d0f415aad3d7c"
 
 NEW_FUNCTION = r'''extern "C" int pgxp_project_precise(int64_t mac1, int64_t mac2, int64_t mac3,
                                     int shift, int lm, int32_t ir1, int32_t ir2,

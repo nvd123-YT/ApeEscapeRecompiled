@@ -58,8 +58,61 @@ if "default_enabled = false" not in manifest or 'default = "true"' not in manife
     raise SystemExit("PGXP must remain optional/off by default while CPU precision propagation is on when selected.")
 option_blocks = re.findall(r"(?ms)^\[\[option\]\]\n.*?(?=^\[\[(?:option|plugin)\]\]|\Z)", manifest)
 culling_blocks = [block for block in option_blocks if re.search(r'(?m)^id = "culling"$', block)]
-if len(culling_blocks) != 1 or not re.search(r'(?m)^default = "true"$', culling_blocks[0]):
+if len(culling_blocks) != 1 or not re.search(r'(?m)^default = "true"
+
+ws_manifest = (ROOT / "mods/preloaded/packages/ape.enhancement.widescreen/1.0.0/manifest.toml").read_text(encoding="utf-8")
+if "Experimental" not in ws_manifest or "default_enabled = false" not in ws_manifest:
+    raise SystemExit("Widescreen must remain explicitly experimental and off by default.")
+issues = (ROOT / "ISSUES.md").read_text(encoding="utf-8")
+for title in ("Widescreen: distance (draw-distance) pop-in", "circus balls pop/cull"):
+    if title not in issues:
+        raise SystemExit(f"Known unverified audiovisual issue was removed: {title}")
+print("AV guardrails passed: pinned PGXP depth/seam support is configured, precise culling is confined to the default-off PGXP mod, interpolation is gameplay-only, and Widescreen remains experimental/off by default.")
+, culling_blocks[0]):
     raise SystemExit("Precise culling must be available and default on only when the optional PGXP mod is selected.")
+for option_id in ("geometry", "perspective"):
+    blocks = [block for block in option_blocks if ('id = "' + option_id + '"') in block]
+    if len(blocks) != 1 or not re.search(r'(?m)^default = "true"
+
+ws_manifest = (ROOT / "mods/preloaded/packages/ape.enhancement.widescreen/1.0.0/manifest.toml").read_text(encoding="utf-8")
+if "Experimental" not in ws_manifest or "default_enabled = false" not in ws_manifest:
+    raise SystemExit("Widescreen must remain explicitly experimental and off by default.")
+issues = (ROOT / "ISSUES.md").read_text(encoding="utf-8")
+for title in ("Widescreen: distance (draw-distance) pop-in", "circus balls pop/cull"):
+    if title not in issues:
+        raise SystemExit(f"Known unverified audiovisual issue was removed: {title}")
+print("AV guardrails passed: pinned PGXP depth/seam support is configured, precise culling is confined to the default-off PGXP mod, interpolation is gameplay-only, and Widescreen remains experimental/off by default.")
+, blocks[0]):
+        raise SystemExit("PGXP " + option_id + " must preserve the combined-correction default and remain independently configurable.")
+
+resolution_manifest = (ROOT / "mods/preloaded/packages/psx.enhancement.internal-resolution/1.0.0/manifest.toml").read_text(encoding="utf-8")
+if not re.search(r'(?m)^default_enabled = true
+
+ws_manifest = (ROOT / "mods/preloaded/packages/ape.enhancement.widescreen/1.0.0/manifest.toml").read_text(encoding="utf-8")
+if "Experimental" not in ws_manifest or "default_enabled = false" not in ws_manifest:
+    raise SystemExit("Widescreen must remain explicitly experimental and off by default.")
+issues = (ROOT / "ISSUES.md").read_text(encoding="utf-8")
+for title in ("Widescreen: distance (draw-distance) pop-in", "circus balls pop/cull"):
+    if title not in issues:
+        raise SystemExit(f"Known unverified audiovisual issue was removed: {title}")
+print("AV guardrails passed: pinned PGXP depth/seam support is configured, precise culling is confined to the default-off PGXP mod, interpolation is gameplay-only, and Widescreen remains experimental/off by default.")
+, resolution_manifest):
+    raise SystemExit("The host-only Internal Resolution control must remain enabled to preserve the title baseline.")
+resolution_options = [block for block in resolution_manifest.split("[[option]]")[1:] if 'id = "resolution"' in block]
+if len(resolution_options) != 1 or not re.search(r'(?m)^default = "default"
+
+ws_manifest = (ROOT / "mods/preloaded/packages/ape.enhancement.widescreen/1.0.0/manifest.toml").read_text(encoding="utf-8")
+if "Experimental" not in ws_manifest or "default_enabled = false" not in ws_manifest:
+    raise SystemExit("Widescreen must remain explicitly experimental and off by default.")
+issues = (ROOT / "ISSUES.md").read_text(encoding="utf-8")
+for title in ("Widescreen: distance (draw-distance) pop-in", "circus balls pop/cull"):
+    if title not in issues:
+        raise SystemExit(f"Known unverified audiovisual issue was removed: {title}")
+print("AV guardrails passed: pinned PGXP depth/seam support is configured, precise culling is confined to the default-off PGXP mod, interpolation is gameplay-only, and Widescreen remains experimental/off by default.")
+, resolution_options[0]):
+    raise SystemExit("Internal Resolution must default to Game default so Ape Escape keeps its configured 4K baseline.")
+if 'internal_resolution = "4k"' not in config:
+    raise SystemExit("Ape Escape's 4K internal-resolution baseline must be retained.")
 
 ws_manifest = (ROOT / "mods/preloaded/packages/ape.enhancement.widescreen/1.0.0/manifest.toml").read_text(encoding="utf-8")
 if "Experimental" not in ws_manifest or "default_enabled = false" not in ws_manifest:

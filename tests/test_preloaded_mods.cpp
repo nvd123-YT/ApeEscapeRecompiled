@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
             return fail("manifest parse failed: " + error);
         }
     }
-    if (manifest_count != 11) return fail("expected eleven package manifests");
+    if (manifest_count != 12) return fail("expected twelve package manifests");
 
     PSXRecompV4::mod_clear_plugins_for_tests();
     for (const char* id : {
@@ -77,6 +77,7 @@ int main(int argc, char** argv) {
              "ape.gadgets.quick-select",
              "ape.gadgets.sky-flyer-triple-jump",
              "psx.pgxp",
+             "psx.internal-resolution",
              "ape.assist.infinite-lives",
              "ape.assist.infinite-health",
              "ape.assist.infinite-air",
@@ -102,13 +103,14 @@ int main(int argc, char** argv) {
     std::string error;
     if (!manager.scan(&error)) return fail("catalog scan failed: " + error);
     if (!manager.load_state(&error)) return fail("default state failed: " + error);
-    if (manager.packages().size() != 11)
-        return fail("expected ten package families");
+    if (manager.packages().size() != 12)
+        return fail("expected twelve package families");
 
     const auto default_plan = manager.resolve(kGameId, "", kDiscSha256);
     if (!default_plan.ok || !default_plan.writes.empty() ||
-        !default_plan.plugins.empty()) {
-        return fail("a mod feature was enabled by default");
+        default_plan.plugins.size() != 1 ||
+        default_plan.plugins.front().id != "psx.internal-resolution") {
+        return fail("only the host-only Internal Resolution control may be enabled by default");
     }
 
     // Every Quality-of-Life feature resolves independently and is default-off.
@@ -423,7 +425,7 @@ int main(int argc, char** argv) {
     }
 
     fs::remove_all(root, ec);
-    std::cout << "Ape Escape preloaded mods: 11 packages, every feature default-off, "
+    std::cout << "Ape Escape preloaded mods: 12 packages, gameplay features default-off, 
                  "3 widescreen choices, 7 interpolated frame-rate choices, "
                  "five independent Gameplay Assist toggles, Extended Draw Distance opt-in, "
                  "Quick Gadget Select guarded patch, five QoL features, four Challenge Pack features/options and two Hardcore Challenge features\n";
