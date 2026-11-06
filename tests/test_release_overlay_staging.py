@@ -180,6 +180,18 @@ def check_contract(repo, fw):
              "tools/release_overlay_stage.ps1; overlay staging must be a CALL, "
              "never a copy")
 
+    # Windows must pass the runtime target so release_stage.py can read the
+    # build-published EXCLUDE_BUILTIN_MODS manifest. Without it the source-tree
+    # fallback incorrectly expects deliberately excluded framework packages.
+    mod_catalog_call = next(
+        (line.strip() for line in lines if line.strip().startswith("Add-ModCatalog")),
+        "",
+    )
+    if "-RuntimeTarget" not in mod_catalog_call or '"psx-runtime"' not in mod_catalog_call:
+        fail("catalog-runtime-target",
+             "Add-ModCatalog must pass -RuntimeTarget psx-runtime so the shared "
+             "stager can honor EXCLUDE_BUILTIN_MODS from the build manifest")
+
     # Add-OverlayToolchain must be called, and called UNCONDITIONALLY. A
     # top-level call (column 0) is the only form that cannot be skipped by a
     # branch, and the runtime's autocompile fail-safe depends on it existing in
