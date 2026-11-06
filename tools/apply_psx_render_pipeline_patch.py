@@ -16,20 +16,20 @@ TEST_REL = Path("tests/psx_profile_test.c")
 
 PROFILE_OLD = "    gi->has_window_size = 1; gi->has_renderer = 1; gi->has_supersampling = 0;"
 PROFILE_V1 = (
-    "    gi->has_window_size = 1; gi->has_renderer = 1;\\n"
-    "    gi->has_render_pipeline = 1;\\n"
+    "    gi->has_window_size = 1; gi->has_renderer = 1;\n"
+    "    gi->has_render_pipeline = 1;\n"
     "    gi->has_supersampling = 0;"
 )
 PROFILE_NEW = (
-    "    gi->has_window_size = 1; gi->has_renderer = 1;\\n"
-    "    gi->has_render_pipeline = 1;\\n"
-    "    gi->has_vsync_vrr = 1;\\n"
+    "    gi->has_window_size = 1; gi->has_renderer = 1;\n"
+    "    gi->has_render_pipeline = 1;\n"
+    "    gi->has_vsync_vrr = 1;\n"
     "    gi->has_supersampling = 0;"
 )
 
 TEST_OLD = "    assert(game.has_renderer == 1);"
-TEST_V1 = TEST_OLD + "\\n    assert(game.has_render_pipeline == 1);"
-TEST_NEW = TEST_V1 + "\\n    assert(game.has_vsync_vrr == 1);"
+TEST_V1 = TEST_OLD + "\n    assert(game.has_render_pipeline == 1);"
+TEST_NEW = TEST_V1 + "\n    assert(game.has_vsync_vrr == 1);"
 
 
 def update(path: Path, old_variants: tuple[str, ...], new: str, check: bool) -> None:
