@@ -35,12 +35,6 @@ jobs:
           ignore: 'generated/**|psxrecomp-v4/**|recomp-ui/**'
           step-summary: true
 
-      - name: Show exact formatting for catalog test
-        if: always()
-        run: |
-          clang-format-21 -style=llvm tests/test_preloaded_mods.cpp > /tmp/test_preloaded_mods.formatted.cpp
-          diff -u tests/test_preloaded_mods.cpp /tmp/test_preloaded_mods.formatted.cpp || true
-
       - name: Fail on lint errors
         if: steps.linter.outputs.checks-failed > 0
         run: exit 1
