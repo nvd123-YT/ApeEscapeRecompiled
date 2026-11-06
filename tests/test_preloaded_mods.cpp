@@ -3,6 +3,8 @@
 
 #include <filesystem>
 #include <iostream>
+
+namespace fs = std::filesystem;
 // These bundled packages contain no donor media. Fail explicitly if a fixture
 // unexpectedly starts depending on it, rather than opening external game data.
 namespace PSXRecompV4 {
