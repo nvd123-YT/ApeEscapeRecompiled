@@ -10,6 +10,18 @@ set(PSXRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/psxrecomp-v4" CACHE PATH
 set(RECOMP_UI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/recomp-ui" CACHE PATH
     "Root directory of the shared recomp-ui launcher")
 
+# Use PSXRecomp's existing ordered HLE textured batching for fresh enhanced builds.
+# Reference builds keep LLE, and an explicit -DPSX_GL_BATCH_IMPL=LLE override wins.
+# Use separate build directories when changing execution profiles or batching tiers.
+if(PSX_EXECUTION_PROFILE STREQUAL "REFERENCE")
+    set(_ape_gl_batch_default "LLE")
+else()
+    set(_ape_gl_batch_default "HLE")
+endif()
+set(PSX_GL_BATCH_IMPL "${_ape_gl_batch_default}" CACHE STRING
+    "OpenGL textured batching: LLE or HLE")
+unset(_ape_gl_batch_default)
+
 # Add the nvd123 Nightly updater action to the pinned shared launcher without
 # forking its submodule. The patch is idempotent and fails closed if upstream
 # changes the known source anchors.
@@ -121,8 +133,23 @@ if(EMSCRIPTEN)
         GAME_OVERLAY_STATIC_C "${CMAKE_CURRENT_SOURCE_DIR}/generated/overlays_static.c")
 endif()
 
+# Select the audited Ape Escape idle-wait sites only when the framework exposes
+# the native wait-policy helper. Disable with -DAPE_NATIVE_IDLE_WAIT=OFF for
+# reference/baseline comparisons.
+option(APE_NATIVE_IDLE_WAIT "Select the audited native frame wait" ON)
+set(APE_NATIVE_IDLE_WAIT_SITES "")
+if(APE_NATIVE_IDLE_WAIT)
+    if(NOT COMMAND psxrecomp_native_idle_wait)
+        message(FATAL_ERROR "APE_NATIVE_IDLE_WAIT needs a framework with native wait-policy support")
+    endif()
+    # SCUS-94423 v_wait uses the target counter at 0x800A9BB0; both sites retain
+    # its stack timeout decrement and interrupt edges.
+    set(APE_NATIVE_IDLE_WAIT_SITES 0x8002E6C0 0x8002E708)
+endif()
+
 psxrecomp_add_runtime_target(psx-runtime
     PGXP
+    NATIVE_IDLE_WAIT_SITES ${APE_NATIVE_IDLE_WAIT_SITES}
     GAME_GENERATED_FULL_C "${GAME_GENERATED_FULL}"
     GAME_GENERATED_DISPATCH_C "${GAME_GENERATED_DISPATCH}"
     ${APE_BROWSER_STATIC_OVERLAY_ARGS}
@@ -134,11 +161,11 @@ psxrecomp_add_runtime_target(psx-runtime
     # retail SCPH-1001 BIOS. The browser launcher explicitly passes its session-local
     # BIOS path with --bios; desktop users can choose the retail image in settings.
     DEFAULT_GAME_CONFIG_PATH "game.toml"
-    PRELOADED_MODS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mods/preloaded"
     LAUNCHER_BOXART "${CMAKE_SOURCE_DIR}/recomp/launcher/boxart.tga"
     # Per-game executable name so each title's process is distinct (killing/
     # launching one title by name never hits another's running instance).
     EXE_NAME "ApeEscapeRecomp"
+    EXCLUDE_BUILTIN_MODS psx.enhancement.cd-speed psx.enhancement.fast-loading
     PRELOADED_MODS_DIR "${APE_PRELOADED_MODS}"
 )
 

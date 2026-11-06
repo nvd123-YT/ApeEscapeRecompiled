@@ -216,6 +216,7 @@ if [ "$skip_build" = "0" ]; then
         -DCMAKE_BUILD_TYPE=Release \
         -DPSX_SDL_BACKEND=SDL3 \
         -DPSX_DEBUG_TOOLS=OFF \
+        -DPSX_ENABLE_VULKAN=ON \
         -DCMAKE_EXE_LINKER_FLAGS="-Wl,--build-id=none"
     cmake --build "$build_dir" --target psx-runtime -j "$jobs"
 fi

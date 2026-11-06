@@ -58,9 +58,10 @@ offer_skip_fmv = false
 # mod. Hide generic Display controls and ignore stale settings.toml values.
 offer_frame_interpolation = false
 
-# OpenGL renderer by default (validated for Ape: native-wide widescreen + the
-# GL compositor perf fix). The launcher's Renderer setting still offers Software.
+# OpenGL renderer by default. Settings also exposes Software and Vulkan when
+# the release build has Vulkan SDK headers and glslc available.
 renderer = "opengl"
+offer_vulkan = true
 
 # Settings > Display exposes Native, 720p, 1080p, 1440p, 4K, 5K, 8K and
 # Match display. Start with the same 4K preset as Spider-Man; players can
@@ -69,6 +70,10 @@ internal_resolution = "4k"
 antialiasing = true
 texture_filtering = "bilinear"
 fmv_filter = "bicubic"
+# Legacy per-setting PGXP controls stay off: the optional PGXP mod owns the
+# independent geometry and perspective-texture switches.
+geometry_correction = false
+perspective_texturing = false
 # Use the PGXP package as the single switch for every PGXP correction.
 # This runtime is built with the high-coverage PGXP hook flavor. Use dataflow
 # shadows only (the position cache can inject unrelated world fractions into

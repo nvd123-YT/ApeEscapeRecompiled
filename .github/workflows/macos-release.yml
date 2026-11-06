@@ -299,6 +299,7 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
             -DPSX_DEBUG_TOOLS=OFF \
             -DPSX_SDL_BACKEND=SDL3 \
+            -DPSX_ENABLE_VULKAN=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
