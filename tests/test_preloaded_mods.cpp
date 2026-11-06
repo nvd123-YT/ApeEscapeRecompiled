@@ -59,7 +59,8 @@ int main(int argc, char** argv) {
             return fail("manifest parse failed: " + error);
         }
     }
-    if (manifest_count != 12) return fail("manifest count mismatch");
+    if (manifest_count != 12)
+      return fail("manifest count mismatch");
 
     PSXRecompV4::mod_clear_plugins_for_tests();
     for (const char* id : {
@@ -98,7 +99,7 @@ int main(int argc, char** argv) {
             return fail(std::string("could not register test plugin ") + id);
     }
 
-    const char* resolution_activation_plugin = "psx.internal-resolution";
+    const char *resolution_activation_plugin = "psx.internal-resolution";
     const bool resolution_registered =
         PSXRecompV4::mod_register_activation_plugin(
             resolution_activation_plugin, no_op_plugin);
@@ -108,16 +109,18 @@ int main(int argc, char** argv) {
     std::string error;
     if (!manager.scan(&error)) return fail("catalog scan failed: " + error);
     if (!manager.load_state(&error)) return fail("default state failed: " + error);
-    if (manager.packages().size() != 12) return fail("package count mismatch");
+    if (manager.packages().size() != 12)
+      return fail("package count mismatch");
 
     const auto default_plan = manager.resolve(kGameId, "", kDiscSha256);
     const bool only_resolution_plugin =
         default_plan.plugins.size() == 1 &&
         default_plan.plugins.front().id == "psx.internal-resolution";
-    const bool default_selection_is_valid =
-        default_plan.ok && default_plan.writes.empty() &&
-        only_resolution_plugin;
-    if (!default_selection_is_valid) return fail("unexpected default mod plan");
+    const bool default_selection_is_valid = default_plan.ok &&
+                                            default_plan.writes.empty() &&
+                                            only_resolution_plugin;
+    if (!default_selection_is_valid)
+      return fail("unexpected default mod plan");
 
     // Every Quality-of-Life feature resolves independently and is default-off.
     for (const auto& [feature, plugin] :
@@ -431,9 +434,13 @@ int main(int argc, char** argv) {
     }
 
     fs::remove_all(root, ec);
-    std::cout << "Ape Escape release catalog: twelve packages; gameplay features remain opt-in, "
+    std::cout << "Ape Escape release catalog: twelve packages; gameplay "
+                 "features remain opt-in, "
                  "3 widescreen choices, 7 interpolated frame-rate choices, "
-                 "five independent Gameplay Assist toggles, Extended Draw Distance opt-in, "
-                 "Quick Gadget Select guarded patch, five QoL features, four Challenge Pack features/options and two Hardcore Challenge features\n";
+                 "five independent Gameplay Assist toggles, Extended Draw "
+                 "Distance opt-in, "
+                 "Quick Gadget Select guarded patch, five QoL features, four "
+                 "Challenge Pack features/options and two Hardcore Challenge "
+                 "features\n";
     return 0;
 }
