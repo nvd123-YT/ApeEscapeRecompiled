@@ -66,14 +66,11 @@ for option_id in ("geometry", "perspective"):
     if len(blocks) != 1 or not re.search(r'(?m)^default = "true"$', blocks[0]):
         raise SystemExit("PGXP " + option_id + " must preserve the combined-correction default and remain independently configurable.")
 
-resolution_manifest = (ROOT / "mods/preloaded/packages/psx.enhancement.internal-resolution/1.0.0/manifest.toml").read_text(encoding="utf-8")
-if not re.search(r'(?m)^default_enabled = true$', resolution_manifest):
-    raise SystemExit("The host-only Internal Resolution control must remain enabled to preserve the title baseline.")
-resolution_options = [block for block in resolution_manifest.split("[[option]]")[1:] if 'id = "resolution"' in block]
-if len(resolution_options) != 1 or not re.search(r'(?m)^default = "default"$', resolution_options[0]):
-    raise SystemExit("Internal Resolution must default to Game default so Ape Escape keeps its configured 4K baseline.")
-if 'internal_resolution = "4k"' not in config:
-    raise SystemExit("Ape Escape's 4K internal-resolution baseline must be retained.")
+resolution_manifest = ROOT / "mods/preloaded/packages/psx.enhancement.internal-resolution/1.0.0/manifest.toml"
+if resolution_manifest.exists():
+    raise SystemExit("Internal Resolution is framework-owned; remove the title-local package shadow.")
+if not re.search(r'(?m)^internal_resolution\s*=\s*"4k"\s*$', config):
+    raise SystemExit("Ape Escape's 4K baseline must remain the framework Internal Resolution Game default.")
 
 ws_manifest = (ROOT / "mods/preloaded/packages/ape.enhancement.widescreen/1.0.0/manifest.toml").read_text(encoding="utf-8")
 if "Experimental" not in ws_manifest or "default_enabled = false" not in ws_manifest:
