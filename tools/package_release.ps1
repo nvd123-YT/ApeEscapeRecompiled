@@ -253,7 +253,7 @@ Write-Host "Bundled recomp-ui launcher assets: $fontCount font(s) + $imgCount im
 # that matters, a mod silently not shipping. It also strips the two things
 # under mods/ that belong to this machine (installed/ and state.toml).
 . (Join-Path $FrameworkRoot "tools\release_overlay_stage.ps1")
-Add-ModCatalog -BuildPath $BuildPath -Stage $Stage `
+Add-ModCatalog -BuildPath $BuildPath -Stage $Stage -RuntimeTarget "psx-runtime" `
                -GameModSource (Join-Path $Root "mods\preloaded") `
                -FrameworkModSource (Join-Path $FrameworkRoot "mods\builtin") | Out-Null
 

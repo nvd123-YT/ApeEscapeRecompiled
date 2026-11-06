@@ -34,9 +34,11 @@ jobs:
         run: |
           python3 tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui
           python3 tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui --check
+          python3 tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui
+          python3 tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui --check
       - name: Check updater helper syntax and archive safety
         run: |
-          python3 -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/write_build_provenance.py
+          python3 -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/apply_psx_render_pipeline_patch.py tools/write_build_provenance.py
           python3 tools/test_nightly_updater.py
       - name: Check disc downloader and CHD validation
         run: |
@@ -459,7 +461,9 @@ jobs:
         run: |
           python tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui
           python tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui --check
-          python -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/write_build_provenance.py
+          python tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui
+          python tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui --check
+          python -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/apply_psx_render_pipeline_patch.py tools/write_build_provenance.py
           python tools/test_nightly_updater.py
 
       - name: Package the Windows x64 release
@@ -585,7 +589,9 @@ jobs:
           set -euo pipefail
           python3 tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui
           python3 tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui --check
-          python3 -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/write_build_provenance.py
+          python3 tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui
+          python3 tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui --check
+          python3 -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/apply_psx_render_pipeline_patch.py tools/write_build_provenance.py
           python3 tools/test_nightly_updater.py
       - name: Build and test Linux AppImage
         run: |

@@ -37,6 +37,18 @@ if(NOT APE_UPDATER_PATCH_RESULT EQUAL 0)
     message(FATAL_ERROR "Could not apply the nvd123 Nightly updater launcher patch.")
 endif()
 
+# The shared PSX profile hides render/present threading unless a host opts in.
+# Ape Escape uses OpenGL by default and exposes these advanced latency controls.
+execute_process(
+    COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/apply_psx_render_pipeline_patch.py"
+            --ui-root "${RECOMP_UI_ROOT}"
+    RESULT_VARIABLE APE_PSX_RENDER_PIPELINE_PATCH_RESULT
+)
+if(NOT APE_PSX_RENDER_PIPELINE_PATCH_RESULT EQUAL 0)
+    message(FATAL_ERROR "Could not enable the PSX render-pipeline Settings controls.")
+endif()
+
 # Apply the audited PGXP projection correction to the pinned framework itself.
 # The patch is idempotent, validates the framework pin, and fails closed if its
 # source anchors change, keeping local CMake builds in sync with CI.
