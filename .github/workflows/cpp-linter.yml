@@ -7,7 +7,7 @@ on:
     branches: ['**']
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 
 jobs:
@@ -34,7 +34,6 @@ jobs:
           lines-changed-only: true
           ignore: 'generated/**|psxrecomp-v4/**|recomp-ui/**'
           step-summary: true
-          auto-fix: true
 
       - name: Fail on lint errors
         if: steps.linter.outputs.checks-failed > 0
