@@ -178,6 +178,9 @@ psxrecomp_add_runtime_target(psx-runtime
     # launching one title by name never hits another's running instance).
     EXE_NAME "ApeEscapeRecomp"
     EXCLUDE_BUILTIN_MODS psx.enhancement.cd-speed psx.enhancement.fast-loading
+    # Development packages are audited for callback/manifest consistency but
+    # are not copied into the player-facing bundled catalog.
+    AUDIT_MOD_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/mods/development"
     PRELOADED_MODS_DIR "${APE_PRELOADED_MODS}"
 )
 
@@ -244,6 +247,7 @@ if(BUILD_TESTING)
         NAME ape_preloaded_mods_test
         COMMAND "$<TARGET_FILE:ape_preloaded_mods_test>"
                 "${CMAKE_CURRENT_SOURCE_DIR}/mods/preloaded"
+                "${CMAKE_CURRENT_SOURCE_DIR}/mods/development"
     )
 
     # Release overlay staging: the shard cache and the overlay toolchain.

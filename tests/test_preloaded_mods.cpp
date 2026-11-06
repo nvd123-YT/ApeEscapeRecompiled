@@ -35,14 +35,21 @@ void no_op_plugin() {}
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 2) return fail("expected the preloaded mods root");
+    if (argc != 3) return fail("expected preloaded and development mods roots");
 
     const fs::path source(argv[1]);
+    const fs::path development(argv[2]);
     const fs::path root =
         fs::temp_directory_path() / "apeescape-preloaded-mods-test";
     std::error_code ec;
     fs::remove_all(root, ec);
     fs::copy(source, root, fs::copy_options::recursive);
+    const fs::path release_frame_smoothing =
+        source / "packages/ape.enhancement.frame-smoothing";
+    if (fs::exists(release_frame_smoothing))
+        return fail("experimental frame smoothing must stay outside the release catalog");
+    fs::copy(development / "packages", root / "packages",
+             fs::copy_options::recursive);
 
     size_t manifest_count = 0;
     for (const fs::directory_entry& entry :
@@ -424,9 +431,10 @@ int main(int argc, char** argv) {
     }
 
     fs::remove_all(root, ec);
-    std::cout << "Ape Escape release catalog: eleven title packages; gameplay "
-                 "features remain opt-in, "
-                 "3 widescreen choices, 7 interpolated frame-rate choices, "
+    std::cout << "Ape Escape release catalog: ten release packages plus one "
+                 "development-only interpolation package; gameplay features "
+                 "remain opt-in, 3 widescreen choices and 7 development "
+                 "interpolated frame-rate choices, "
                  "five independent Gameplay Assist toggles, Extended Draw "
                  "Distance opt-in, "
                  "Quick Gadget Select guarded patch, five QoL features, four "
