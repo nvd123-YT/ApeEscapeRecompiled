@@ -1639,6 +1639,25 @@ static bool ape_escape_enable_all_mod_features(LauncherModel* m) {
         "        else draw_ui(m, *th, p->logical_w, p->logical_h);\n"
     )
     draw_anchor_direct = "        draw_ui(m, *th, p->logical_w, p->logical_h);\n"
+    # Newer recomp-ui keeps the setup-wizard overlay and card-manager render
+    # in the frame loop. Preserve both while switching the title's effective
+    # theme pointer for every frame-level view.
+    draw_anchor_with_setup = (
+        "        if (launch_commit.job.pending() && (launch_commit.close_requested || p->should_quit))\n"
+        "            launch_commit.job.request_cancel();\n"
+        "        if (launch_commit.job.pending()) draw_launch_commit_progress(*th);\n"
+        "        else if (m->setup_preparing) draw_setup_wizard_modal(m, *th);\n"
+        "        else draw_ui(m, *th, p->logical_w, p->logical_h);\n"
+        "        if (!launch_commit.job.pending()) card_manager_ui::draw(m);\n"
+    )
+    draw_replacement_with_setup = (
+        "        if (launch_commit.job.pending() && (launch_commit.close_requested || p->should_quit))\n"
+        "            launch_commit.job.request_cancel();\n"
+        "        if (launch_commit.job.pending()) draw_launch_commit_progress(*g_th);\n"
+        "        else if (m->setup_preparing) draw_setup_wizard_modal(m, *g_th);\n"
+        "        else draw_ui(m, *g_th, p->logical_w, p->logical_h);\n"
+        "        if (!launch_commit.job.pending()) card_manager_ui::draw(m);\n"
+    )
     clear_anchor = "        const LngColor bg = th->background;\n"
     if ACCESS_THEME_MARKER not in launcher_text:
         if args.check:
@@ -1653,6 +1672,9 @@ static bool ape_escape_enable_all_mod_features(LauncherModel* m) {
                 "        if (launch_commit.job.pending()) draw_launch_commit_progress(*g_th);\n"
                 "        else draw_ui(m, *g_th, p->logical_w, p->logical_h);\n"
             )
+        elif launcher_text.count(draw_anchor_with_setup) == 1:
+            selected_draw_anchor = draw_anchor_with_setup
+            draw_replacement = draw_replacement_with_setup
         elif launcher_text.count(draw_anchor_direct) == 1:
             selected_draw_anchor = draw_anchor_direct
             draw_replacement = "        draw_ui(m, *g_th, p->logical_w, p->logical_h);\n"
