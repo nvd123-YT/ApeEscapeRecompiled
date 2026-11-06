@@ -53,6 +53,15 @@ if (framework / ".git").exists():
             f"Framework checkout ({checked_out_pin}) disagrees with framework_pins.txt ({expected_framework_pin})."
         )
 
+frame_smoothing_release = ROOT / "mods/preloaded/packages/ape.enhancement.frame-smoothing/1.0.0/manifest.toml"
+frame_smoothing_dev = ROOT / "mods/development/packages/ape.enhancement.frame-smoothing/1.0.0/manifest.toml"
+if frame_smoothing_release.exists():
+    raise SystemExit("Experimental frame interpolation must remain out of the release catalog.")
+if not frame_smoothing_dev.is_file():
+    raise SystemExit("Keep the interpolation implementation available in the development catalog.")
+if "default_enabled = false" not in frame_smoothing_dev.read_text(encoding="utf-8"):
+    raise SystemExit("Development-only interpolation must remain default-off.")
+
 manifest = (ROOT / "mods/preloaded/packages/psx.enhancement.pgxp/1.0.0/manifest.toml").read_text(encoding="utf-8")
 if "default_enabled = false" not in manifest or 'default = "true"' not in manifest:
     raise SystemExit("PGXP must remain optional/off by default while CPU precision propagation is on when selected.")

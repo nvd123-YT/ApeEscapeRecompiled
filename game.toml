@@ -54,8 +54,9 @@ guest_cycle_scale_gate = { addr = 0x800F447C, size = 1, value = 3 }
 auto_skip_fmv = false
 offer_skip_fmv = false
 
-# Ape owns optional temporal blending through its default-off Frame Smoothing
-# mod. Hide generic Display controls and ignore stale settings.toml values.
+# Experimental frame interpolation is retained for developer testing only and
+# excluded from the release catalog until hardware and audio-sync QA is complete.
+# Keep generic Display controls hidden and ignore stale settings.toml values.
 offer_frame_interpolation = false
 
 # OpenGL renderer by default. Settings also exposes Software and Vulkan when

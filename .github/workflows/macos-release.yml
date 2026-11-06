@@ -314,7 +314,7 @@ jobs:
       - name: Compile the runtime and tests
         run: |
           cmake --build build-macos-release --parallel "$BUILD_JOBS" --target psx-runtime ape_pgxp_projection_test ape_stick_response_test ape_preloaded_mods_test
-          ctest --test-dir build-macos-release --output-on-failure -R 'ape_pgxp_projection_test|ape_stick_response_test|ape_preloaded_mods_test'
+          ctest --test-dir build-macos-release --output-on-failure -R 'ape_pgxp_projection_test|ape_stick_response_test|ape_preloaded_mods_test|ape_vwait_contract_test'
 
       - name: Write release provenance for the updater
         run: python3 tools/write_build_provenance.py

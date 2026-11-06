@@ -249,6 +249,21 @@ if(BUILD_TESTING)
                 "${CMAKE_CURRENT_SOURCE_DIR}/mods/preloaded"
                 "${CMAKE_CURRENT_SOURCE_DIR}/mods/development"
     )
+    # Exercise the actual regenerated PsyQ v_wait caller against the shared
+    # original/native induction harness. A clean checkout without generated
+    # retail-derived C skips with code 77; release builds generate it first.
+    add_test(
+        NAME ape_vwait_contract_test
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PSXRECOMP_ROOT}/runtime/tests/native_wait_caller.py"
+                --framework "${PSXRECOMP_ROOT}"
+                --cc "${CMAKE_C_COMPILER}"
+                --generated "${CMAKE_CURRENT_SOURCE_DIR}/generated"
+                --contract "${CMAKE_CURRENT_SOURCE_DIR}/tests/vwait_contract.json"
+    )
+    set_tests_properties(ape_vwait_contract_test PROPERTIES
+        SKIP_RETURN_CODE 77 RUN_SERIAL TRUE
+    )
 
     # Release overlay staging: the shard cache and the overlay toolchain.
     #

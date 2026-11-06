@@ -6,6 +6,8 @@ All notable changes to Ape Escape Recompiled — Enhanced Edition are recorded h
 ## [Unreleased]
 
 ### Added
+- Moved experimental Interpolated Rendering out of the public release catalog and into `mods/development`. Its native implementation and seven rate options remain available for developer testing, but the public launcher no longer offers interpolation before transition, visual and audio-sync validation is complete.
+- Added the framework's shared native `v_wait` caller contract test to CTest. It compares the original and accelerated paths against the regenerated SCUS-94423 caller, while keeping retail-derived code in temporary test files.
 - Adopted the framework's ordered HLE textured batching default for enhanced builds and its audited Ape Escape native idle-wait sites. Fresh reference-profile builds use LLE; `-DPSX_GL_BATCH_IMPL=LLE` and `-DAPE_NATIVE_IDLE_WAIT=OFF` remain available for A/B/reference builds.
 - Set the optional Widescreen aspect choice to **Fit to screen** (adaptive) when the player enables the experimental feature; Widescreen itself remains off so the original 4:3 presentation is preserved.
 - Updated the shared PSXRecomp runtime and launcher to the November 5 upstream graphics/settings work. The Mods page now has independent PGXP geometry and perspective-texture controls, PS1 dithering modes, dynamic resolution and supersampling controls, optional FXAA/bloom/custom `.pfx` post-processing, `.psxmod` package import, and remappable quick-save/load actions. Settings also restores Software/OpenGL/Vulkan, render/present threading, VSync, Adaptive and VRR controls when the backend supports them.
