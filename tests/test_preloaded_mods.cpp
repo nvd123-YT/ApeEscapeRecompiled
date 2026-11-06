@@ -59,7 +59,9 @@ int main(int argc, char** argv) {
             return fail("manifest parse failed: " + error);
         }
     }
-    if (manifest_count != 12) return fail("expected twelve package manifests");
+    if (manifest_count != 12) {
+        return fail("expected twelve package manifests");
+    }
 
     PSXRecompV4::mod_clear_plugins_for_tests();
     for (const char* id : {
@@ -77,7 +79,6 @@ int main(int argc, char** argv) {
              "ape.gadgets.quick-select",
              "ape.gadgets.sky-flyer-triple-jump",
              "psx.pgxp",
-             "psx.internal-resolution",
              "ape.assist.infinite-lives",
              "ape.assist.infinite-health",
              "ape.assist.infinite-air",
@@ -99,17 +100,24 @@ int main(int argc, char** argv) {
             return fail(std::string("could not register test plugin ") + id);
     }
 
+    if (!PSXRecompV4::mod_register_activation_plugin(
+            "psx.internal-resolution", no_op_plugin)) {
+        return fail("could not register test plugin psx.internal-resolution");
+    }
+
     PSXRecompV4::ModPackageManager manager(root);
     std::string error;
     if (!manager.scan(&error)) return fail("catalog scan failed: " + error);
     if (!manager.load_state(&error)) return fail("default state failed: " + error);
-    if (manager.packages().size() != 12)
+    if (manager.packages().size() != 12) {
         return fail("expected twelve package families");
+    }
 
     const auto default_plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!default_plan.ok || !default_plan.writes.empty() ||
-        default_plan.plugins.size() != 1 ||
-        default_plan.plugins.front().id != "psx.internal-resolution") {
+    const bool only_resolution_plugin =
+        default_plan.plugins.size() == 1 &&
+        default_plan.plugins.front().id == "psx.internal-resolution";
+    if (!default_plan.ok || !default_plan.writes.empty() || !only_resolution_plugin) {
         return fail("only the host-only Internal Resolution control may be enabled by default");
     }
 
@@ -425,7 +433,7 @@ int main(int argc, char** argv) {
     }
 
     fs::remove_all(root, ec);
-    std::cout << "Ape Escape preloaded mods: 12 packages, gameplay features default-off, 
+    std::cout << "Ape Escape preloaded mods: 12 packages, gameplay features default-off, "
                  "3 widescreen choices, 7 interpolated frame-rate choices, "
                  "five independent Gameplay Assist toggles, Extended Draw Distance opt-in, "
                  "Quick Gadget Select guarded patch, five QoL features, four Challenge Pack features/options and two Hardcore Challenge features\n";
