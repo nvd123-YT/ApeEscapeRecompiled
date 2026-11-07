@@ -12,11 +12,18 @@ WHAT YOU NEED
 FIRST RUN
   1. Launch ApeEscapeRecomp.exe. The launcher window opens.
   2. Set the Disc row to your Ape Escape image.
-  3. Optionally visit Mods for the Ape-specific bundled enhancements:
-     Widescreen, Frame Smoothing, Skip FMVs, and Quick Gadget Select. Frame
-     Smoothing is temporal blending, not motion-vector frame generation. Quick
-     Gadget Select was contributed by mthsk.
-  4. Press Launch. Your choices are remembered for next time.
+  3. Visit Settings for Renderer (Software/OpenGL/Vulkan when available),
+     render/present threading, and VSync options including Adaptive/VRR when
+     supported by your display and backend.
+  4. Visit Mods for image filtering, Internal Resolution (4x fresh default;
+     Game default follows this title's 4K setting), and optional Ape-specific
+     enhancements. Widescreen remains off by default; when enabled, Fit to
+     screen follows the window aspect.
+     For PS1 dithering, enable Mods > Image Filtering, then choose Dithering:
+     Game default, Off, Native (PS1), or Fine. Dithering is OpenGL-only; the
+     choice is retained for the next OpenGL session on other renderers.
+  5. In Controls, Quick Save and Quick Load can be assigned to your preferred
+     keys or controller buttons. Press Launch when ready. Your choices persist.
 
 SAVE STATES AND REWIND
   Save states and rewind are available through the launcher hotkeys. Defaults:

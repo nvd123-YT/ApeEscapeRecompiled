@@ -2,7 +2,7 @@
 
 Maintained as part of the nvd123 project, these packages appear on the launcher's Mods page. Native callbacks are compiled into the runtime; package manifests describe the available features and their options.
 
-**Every feature is disabled by default.** Select a feature explicitly before launching the game. Options inside an enabled feature choose how that feature behaves; they do not silently turn on unrelated features.
+**Every gameplay-changing title feature is disabled by default.** Internal Resolution is provided by the framework as a host-only display control and starts at 4x on fresh profiles. Its **Game default** choice follows this title's `game.toml` 4K baseline. Changing the display scale does not enable gameplay mods.
 
 Packages target the North American SCUS-94423 release. Where a target hash is specified, it identifies the MODE2/2352 data-track BIN used by the mod loader. No disc image or retail BIOS is shipped in the catalog.
 
@@ -16,3 +16,5 @@ The **Challenge Pack** adds timed monkey hunts, no-damage runs, limited starting
 
 The separate **Hardcore Challenges** package adds default-off **Monkey Mayhem** and **Nightmare Mode**. Monkey Mayhem experimentally zeroes a community-reported monkey-action cooldown during active play; that RAM mapping requires in-game validation. Nightmare Mode automatically includes Monkey Mayhem with one-hit health, a three-life maximum that blocks extra-life increases, and a three-minute per-stage time limit. Its HUD displays the stage countdown.
 
+
+The experimental Interpolated Rendering package is not part of this release catalog. Its source and manifest are retained under `mods/development/packages/ape.enhancement.frame-smoothing` for development and hardware validation; do not move it into `mods/preloaded` until transition safety, visual smoothness and audio synchronization are qualified.

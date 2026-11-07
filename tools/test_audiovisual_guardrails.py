@@ -53,6 +53,15 @@ if (framework / ".git").exists():
             f"Framework checkout ({checked_out_pin}) disagrees with framework_pins.txt ({expected_framework_pin})."
         )
 
+frame_smoothing_release = ROOT / "mods/preloaded/packages/ape.enhancement.frame-smoothing/1.0.0/manifest.toml"
+frame_smoothing_dev = ROOT / "mods/development/packages/ape.enhancement.frame-smoothing/1.0.0/manifest.toml"
+if frame_smoothing_release.exists():
+    raise SystemExit("Experimental frame interpolation must remain out of the release catalog.")
+if not frame_smoothing_dev.is_file():
+    raise SystemExit("Keep the interpolation implementation available in the development catalog.")
+if "default_enabled = false" not in frame_smoothing_dev.read_text(encoding="utf-8"):
+    raise SystemExit("Development-only interpolation must remain default-off.")
+
 manifest = (ROOT / "mods/preloaded/packages/psx.enhancement.pgxp/1.0.0/manifest.toml").read_text(encoding="utf-8")
 if "default_enabled = false" not in manifest or 'default = "true"' not in manifest:
     raise SystemExit("PGXP must remain optional/off by default while CPU precision propagation is on when selected.")
@@ -60,6 +69,17 @@ option_blocks = re.findall(r"(?ms)^\[\[option\]\]\n.*?(?=^\[\[(?:option|plugin)\
 culling_blocks = [block for block in option_blocks if re.search(r'(?m)^id = "culling"$', block)]
 if len(culling_blocks) != 1 or not re.search(r'(?m)^default = "true"$', culling_blocks[0]):
     raise SystemExit("Precise culling must be available and default on only when the optional PGXP mod is selected.")
+
+for option_id in ("geometry", "perspective"):
+    blocks = [block for block in option_blocks if ('id = "' + option_id + '"') in block]
+    if len(blocks) != 1 or not re.search(r'(?m)^default = "true"$', blocks[0]):
+        raise SystemExit("PGXP " + option_id + " must preserve the combined-correction default and remain independently configurable.")
+
+resolution_manifest = ROOT / "mods/preloaded/packages/psx.enhancement.internal-resolution/1.0.0/manifest.toml"
+if resolution_manifest.exists():
+    raise SystemExit("Internal Resolution is framework-owned; remove the title-local package shadow.")
+if not re.search(r'(?m)^internal_resolution\s*=\s*"4k"\s*$', config):
+    raise SystemExit("Ape Escape's 4K baseline must remain the framework Internal Resolution Game default.")
 
 ws_manifest = (ROOT / "mods/preloaded/packages/ape.enhancement.widescreen/1.0.0/manifest.toml").read_text(encoding="utf-8")
 if "Experimental" not in ws_manifest or "default_enabled = false" not in ws_manifest:

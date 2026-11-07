@@ -1,0 +1,16 @@
+{
+  "revision": "SCUS-94423",
+  "symbol": "func_8002E698",
+  "entry": "0x8002E698",
+  "end": "0x8002E730",
+  "counter": "0x800A9BB0",
+  "sites": [
+    "0x8002E6C0",
+    "0x8002E708"
+  ],
+  "callbacks": [
+    "0x800A37B8",
+    "0x8002F1F0",
+    "0x8002F270"
+  ]
+}

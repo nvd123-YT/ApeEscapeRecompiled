@@ -86,7 +86,7 @@ The launcher keeps the usual configuration controls alongside this project's opt
 Every mod feature starts **off**. Enabling one item does not turn on the others. The bundled catalog currently includes:
 
 - **Widescreen** — select 16:9, 21:9 or adaptive presentation.
-- **Interpolated Rendering** — optional intermediate-frame presentation rates. It requires OpenGL; it does not intentionally change the game's simulation cadence.
+- **Interpolated Rendering** — an experimental development-only package for intermediate-frame presentation rates. It is retained under `mods/development` for testing but is not included in public release catalogs pending hardware, transition-safety and audio-sync validation.
 - **PGXP Precision** — optional geometry precision and texture handling.
 - **Skip FMVs** — skip full-motion videos through the game's normal completion path.
 - **Quick Gadget Select** — a compact gadget-selection row.

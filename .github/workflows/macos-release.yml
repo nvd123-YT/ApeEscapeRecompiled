@@ -34,9 +34,11 @@ jobs:
         run: |
           python3 tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui
           python3 tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui --check
+          python3 tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui
+          python3 tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui --check
       - name: Check updater helper syntax and archive safety
         run: |
-          python3 -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/write_build_provenance.py
+          python3 -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/apply_psx_render_pipeline_patch.py tools/write_build_provenance.py
           python3 tools/test_nightly_updater.py
       - name: Check disc downloader and CHD validation
         run: |
@@ -52,6 +54,12 @@ jobs:
           set -euo pipefail
           python3 -m py_compile tools/test_launcher_features.py
           python3 tools/test_launcher_features.py
+
+      - name: Check shared release catalog staging contract
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tests/test_release_overlay_staging.py
+          python3 tests/test_release_overlay_staging.py . psxrecomp-v4
           cc -std=c99 -Wall -Wextra -Werror -fsyntax-only -Ipsxrecomp-v4/runtime/include templates/mod-plugin/example_plugin.c
       - name: Check macOS packaging shell syntax
         run: bash -n tools/package_macos.sh
@@ -299,13 +307,14 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
             -DPSX_DEBUG_TOOLS=OFF \
             -DPSX_SDL_BACKEND=SDL3 \
+            -DPSX_ENABLE_VULKAN=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Compile the runtime and tests
         run: |
           cmake --build build-macos-release --parallel "$BUILD_JOBS" --target psx-runtime ape_pgxp_projection_test ape_stick_response_test ape_preloaded_mods_test
-          ctest --test-dir build-macos-release --output-on-failure -R 'ape_pgxp_projection_test|ape_stick_response_test|ape_preloaded_mods_test'
+          ctest --test-dir build-macos-release --output-on-failure -R 'ape_pgxp_projection_test|ape_stick_response_test|ape_preloaded_mods_test|ape_vwait_contract_test'
 
       - name: Write release provenance for the updater
         run: python3 tools/write_build_provenance.py
@@ -458,7 +467,9 @@ jobs:
         run: |
           python tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui
           python tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui --check
-          python -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/write_build_provenance.py
+          python tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui
+          python tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui --check
+          python -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/apply_psx_render_pipeline_patch.py tools/write_build_provenance.py
           python tools/test_nightly_updater.py
 
       - name: Package the Windows x64 release
@@ -584,7 +595,9 @@ jobs:
           set -euo pipefail
           python3 tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui
           python3 tools/apply_recomp_ui_update_patch.py --ui-root recomp-ui --check
-          python3 -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/write_build_provenance.py
+          python3 tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui
+          python3 tools/apply_psx_render_pipeline_patch.py --ui-root recomp-ui --check
+          python3 -m py_compile tools/in_app_updater.py tools/apply_recomp_ui_update_patch.py tools/apply_psx_render_pipeline_patch.py tools/write_build_provenance.py
           python3 tools/test_nightly_updater.py
       - name: Build and test Linux AppImage
         run: |

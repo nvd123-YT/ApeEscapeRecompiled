@@ -161,7 +161,7 @@ if (-not $SkipRegen) {
 # load-bearing: derive the tag before this and it is computed from a header that
 # does not exist yet or is stale, and every shard is filed under a namespace the
 # shipped runtime does not scan.
-Invoke-Native { & $CMake -S $Root -B $BuildPath -G Ninja -DCMAKE_BUILD_TYPE=Release -DPSX_DEBUG_TOOLS=OFF -DPSX_PGXP_VARIANT=OFF -DPSX_SDL_BACKEND=SDL3 "-DPSX_GAME_VERSION=$Version" `
+Invoke-Native { & $CMake -S $Root -B $BuildPath -G Ninja -DCMAKE_BUILD_TYPE=Release -DPSX_DEBUG_TOOLS=OFF -DPSX_PGXP_VARIANT=OFF -DPSX_SDL_BACKEND=SDL3 -DPSX_ENABLE_VULKAN=ON "-DPSX_GAME_VERSION=$Version" `
     "-DPSXRECOMP_ROOT=$FrameworkRoot" "-DRECOMP_UI_ROOT=$RecompUiRoot" } "cmake configure"
 Invoke-Native { & $CMake --build $BuildPath --target psx-runtime -j $Jobs } "cmake build"
 
@@ -195,7 +195,7 @@ Invoke-Native { & curl.exe --fail --silent --show-error --location --retry 3 --o
 if (!(Test-Path -LiteralPath $UpdaterCaBundle) -or (Get-Item -LiteralPath $UpdaterCaBundle).Length -lt 10000) {
     throw "The updater CA certificate bundle was not downloaded correctly."
 }
-Invoke-Native { & python -c "import ssl,sys; c=ssl.create_default_context(cafile=sys.argv[1]); assert c.verify_mode == ssl.CERT_REQUIRED and c.check_hostname" $UpdaterCaBundle } 'validate updater CA bundle'
+Invoke-Native { & py -3 -c "import ssl,sys; c=ssl.create_default_context(cafile=sys.argv[1]); assert c.verify_mode == ssl.CERT_REQUIRED and c.check_hostname" $UpdaterCaBundle } 'validate updater CA bundle'
 New-Item -ItemType Directory -Force (Join-Path $Stage 'docs') | Out-Null
 Copy-Item (Join-Path $Root 'docs/AOT_OVERLAYS.md') (Join-Path $Stage 'docs')
 New-Item -ItemType Directory -Force (Join-Path $Stage 'docs/mod-development') | Out-Null
@@ -253,7 +253,7 @@ Write-Host "Bundled recomp-ui launcher assets: $fontCount font(s) + $imgCount im
 # that matters, a mod silently not shipping. It also strips the two things
 # under mods/ that belong to this machine (installed/ and state.toml).
 . (Join-Path $FrameworkRoot "tools\release_overlay_stage.ps1")
-Add-ModCatalog -BuildPath $BuildPath -Stage $Stage `
+Add-ModCatalog -BuildPath $BuildPath -Stage $Stage -RuntimeTarget "psx-runtime" `
                -GameModSource (Join-Path $Root "mods\preloaded") `
                -FrameworkModSource (Join-Path $FrameworkRoot "mods\builtin") | Out-Null
 

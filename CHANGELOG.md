@@ -5,6 +5,14 @@ All notable changes to Ape Escape Recompiled — Enhanced Edition are recorded h
 
 ## [Unreleased]
 
+### Added
+- Moved experimental Interpolated Rendering out of the public release catalog and into `mods/development`. Its native implementation and seven rate options remain available for developer testing, but the public launcher no longer offers interpolation before transition, visual and audio-sync validation is complete.
+- Added the framework's shared native `v_wait` caller contract test to CTest. It compares the original and accelerated paths against the regenerated SCUS-94423 caller, while keeping retail-derived code in temporary test files.
+- Adopted the framework's ordered HLE textured batching default for enhanced builds and its audited Ape Escape native idle-wait sites. Fresh reference-profile builds use LLE; `-DPSX_GL_BATCH_IMPL=LLE` and `-DAPE_NATIVE_IDLE_WAIT=OFF` remain available for A/B/reference builds.
+- Set the optional Widescreen aspect choice to **Fit to screen** (adaptive) when the player enables the experimental feature; Widescreen itself remains off so the original 4:3 presentation is preserved.
+- Updated the shared PSXRecomp runtime and launcher to the November 5 upstream graphics/settings work. The Mods page now has independent PGXP geometry and perspective-texture controls, PS1 dithering modes, dynamic resolution and supersampling controls, optional FXAA/bloom/custom `.pfx` post-processing, `.psxmod` package import, and remappable quick-save/load actions. Settings also restores Software/OpenGL/Vulkan, render/present threading, VSync, Adaptive and VRR controls when the backend supports them.
+- Adopted the framework-owned Internal Resolution controls: 1x–32x, 720p through 8K, Match display, Auto/dynamic resolution, and supersampling. Fresh profiles start at 4x; **Game default** follows Ape Escape's configured 4K baseline. No title-local shadow package is shipped.
+
 ### Fixed
 - Bumped PSXRecomp to `4102438ab4c5aadf010878029d0324ef6382e521`, the narrow upstream revision containing the PGXP depth-buffer and seam-expansion renderer, then enabled `pgxp_depth_buffer = true` and `pgxp_seam = "wide"` for high-resolution rendering. Precise culling is enabled only when the optional PGXP mod itself is selected. These changes target remaining terrain cracks; they are not a claim that cutscene wobble, every texture warp, or shaking with PGXP disabled is fixed until matched visual captures confirm it.
 - Configured the high-coverage PGXP hook build for dataflow-only vertex precision and exact GTE projection (`pgxp_position_fallback = false`, `pgxp_preserve_projection = true`, `pgxp_tolerance = -1.0`) behind the single default-off PGXP mod switch. This is a source-level correction; live visual confirmation of wobble, seams, and texture warping is still outstanding.
