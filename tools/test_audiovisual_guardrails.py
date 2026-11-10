@@ -5,7 +5,7 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-frame_source = (ROOT / "src/mods/ape_frame_rate_plugin.cpp").read_text(encoding="utf-8")
+frame_source = (ROOT / "archive/legacy-frame-interpolation/ape_frame_rate_plugin.cpp").read_text(encoding="utf-8")
 guard = re.search(
     r"if\s*\(\s*index\s*>\s*1\s*\|\|(?P<conditions>[^)]*)\)\s*\{\s*replay\.invalidate\(\)",
     frame_source,
@@ -53,14 +53,26 @@ if (framework / ".git").exists():
             f"Framework checkout ({checked_out_pin}) disagrees with framework_pins.txt ({expected_framework_pin})."
         )
 
-frame_smoothing_release = ROOT / "mods/preloaded/packages/ape.enhancement.frame-smoothing/1.0.0/manifest.toml"
-frame_smoothing_dev = ROOT / "mods/development/packages/ape.enhancement.frame-smoothing/1.0.0/manifest.toml"
-if frame_smoothing_release.exists():
-    raise SystemExit("Experimental frame interpolation must remain out of the release catalog.")
-if not frame_smoothing_dev.is_file():
-    raise SystemExit("Keep the interpolation implementation available in the development catalog.")
-if "default_enabled = false" not in frame_smoothing_dev.read_text(encoding="utf-8"):
-    raise SystemExit("Development-only interpolation must remain default-off.")
+legacy_replay_source = ROOT / "archive/legacy-frame-interpolation/ape_frame_rate_plugin.cpp"
+legacy_replay_manifest = ROOT / "archive/legacy-frame-interpolation/manifest.toml"
+active_replay_source = ROOT / "src/mods/ape_frame_rate_plugin.cpp"
+if active_replay_source.exists():
+    raise SystemExit("The retired render-pass replay plugin must not be compiled by the active source glob.")
+if not legacy_replay_source.is_file() or not legacy_replay_manifest.is_file():
+    raise SystemExit("Preserve the previous replay interpolation source and manifest in the archive.")
+geometry_source = ROOT / "src/mods/ape_presentation_capture.cpp"
+geometry_manifest = ROOT / "mods/preloaded/packages/ape.enhancement.geometry-interpolation/1.0.0/manifest.toml"
+if not geometry_source.is_file() or not geometry_manifest.is_file():
+    raise SystemExit("The supported geometry-capture presentation implementation is missing.")
+geometry_text = geometry_manifest.read_text(encoding="utf-8")
+if "default_enabled = false" not in geometry_text or 'id = "ape.presentation.capture"' not in geometry_text:
+    raise SystemExit("Geometry Interpolation must remain opt-in and map to its capture plugin.")
+prop_manifest = ROOT / "mods/preloaded/packages/ape.fix.prop-visibility/1.0.0/manifest.toml"
+if not prop_manifest.is_file():
+    raise SystemExit("The upstream prop-visibility compatibility fix is missing.")
+prop_text = prop_manifest.read_text(encoding="utf-8")
+if "default_enabled = true" not in prop_text or "hidden = true" not in prop_text:
+    raise SystemExit("Prop Visibility Correction must remain hidden and default-enabled.")
 
 manifest = (ROOT / "mods/preloaded/packages/psx.enhancement.pgxp/1.0.0/manifest.toml").read_text(encoding="utf-8")
 if "default_enabled = false" not in manifest or 'default = "true"' not in manifest:
@@ -88,4 +100,4 @@ issues = (ROOT / "ISSUES.md").read_text(encoding="utf-8")
 for title in ("Widescreen: distance (draw-distance) pop-in", "circus balls pop/cull"):
     if title not in issues:
         raise SystemExit(f"Known unverified audiovisual issue was removed: {title}")
-print("AV guardrails passed: pinned PGXP depth/seam support is configured, precise culling is confined to the default-off PGXP mod, interpolation is gameplay-only, and Widescreen remains experimental/off by default.")
+print("AV guardrails passed: PGXP depth/seam support is configured, legacy replay is archived, Geometry Interpolation is opt-in, Prop Visibility is a hidden visual fix, and Widescreen remains experimental/off by default.")
