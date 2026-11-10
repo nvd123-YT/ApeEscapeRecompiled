@@ -68,9 +68,46 @@ ANDROID_GL_LINKAGE = "        if(ANDROID)\n            # APE_ANDROID_GLES_LINKAG
 FIBER_ANCHOR = "#else /* POSIX: ucontext */"
 ANDROID_FIBER_BRANCH = "#elif defined(__ANDROID__) && defined(__aarch64__)\n/* APE_ANDROID_AARCH64_FIBERS\n * Bionic does not expose getcontext/makecontext/swapcontext. This small\n * cooperative AArch64 context switch preserves the AAPCS64 callee-saved\n * integer/floating-point registers, stack pointer, FPCR, and FPSR. The game\n * scheduler is single-threaded and only switches at explicit fiber calls.\n */\n#include <stdint.h>\n#include <stdlib.h>\n\ntypedef struct psx_fiber_impl {\n    uint64_t callee_saved[12]; /* x19-x30 */\n    uintptr_t sp;\n    uint64_t fp_d8_d15[8];     /* d8-d15, AAPCS64 callee-saved FP registers */\n    uint64_t fpcr;\n    uint64_t fpsr;\n    void* stack;\n    psx_fiber_entry entry;\n    void* arg;\n} psx_fiber_impl;\n\nstatic psx_fiber_impl* s_current = NULL;\n\nvoid psx_fiber_android_switch(psx_fiber_impl* from, psx_fiber_impl* to);\n\n__asm__(\n    \".text\\n\"\n    \".align 2\\n\"\n    \".global psx_fiber_android_switch\\n\"\n    \".type psx_fiber_android_switch, %function\\n\"\n    \"psx_fiber_android_switch:\\n\"\n    \"stp x19, x20, [x0, #0]\\n\"\n    \"stp x21, x22, [x0, #16]\\n\"\n    \"stp x23, x24, [x0, #32]\\n\"\n    \"stp x25, x26, [x0, #48]\\n\"\n    \"stp x27, x28, [x0, #64]\\n\"\n    \"stp x29, x30, [x0, #80]\\n\"\n    \"mov x9, sp\\n\"\n    \"str x9, [x0, #96]\\n\"\n    \"stp d8, d9, [x0, #104]\\n\"\n    \"stp d10, d11, [x0, #120]\\n\"\n    \"stp d12, d13, [x0, #136]\\n\"\n    \"stp d14, d15, [x0, #152]\\n\"\n    \"mrs x9, fpcr\\n\"\n    \"str x9, [x0, #168]\\n\"\n    \"mrs x9, fpsr\\n\"\n    \"str x9, [x0, #176]\\n\"\n    \"ldp d8, d9, [x1, #104]\\n\"\n    \"ldp d10, d11, [x1, #120]\\n\"\n    \"ldp d12, d13, [x1, #136]\\n\"\n    \"ldp d14, d15, [x1, #152]\\n\"\n    \"ldr x9, [x1, #168]\\n\"\n    \"msr fpcr, x9\\n\"\n    \"ldr x9, [x1, #176]\\n\"\n    \"msr fpsr, x9\\n\"\n    \"ldr x9, [x1, #96]\\n\"\n    \"mov sp, x9\\n\"\n    \"ldp x19, x20, [x1, #0]\\n\"\n    \"ldp x21, x22, [x1, #16]\\n\"\n    \"ldp x23, x24, [x1, #32]\\n\"\n    \"ldp x25, x26, [x1, #48]\\n\"\n    \"ldp x27, x28, [x1, #64]\\n\"\n    \"ldp x29, x30, [x1, #80]\\n\"\n    \"mov x0, x19\\n\"\n    \"ret\\n\"\n    \".size psx_fiber_android_switch, .-psx_fiber_android_switch\\n\"\n);\n\nstatic void psx_fiber_android_trampoline(psx_fiber_impl* f)\n{\n    f->entry(f->arg);\n    /* Fiber entry points must switch away rather than return normally. */\n    abort();\n}\n\npsx_fiber_t psx_fiber_convert_thread(void)\n{\n    if (!s_current) {\n        s_current = (psx_fiber_impl*)calloc(1, sizeof(*s_current));\n    }\n    return (psx_fiber_t)s_current;\n}\n\npsx_fiber_t psx_fiber_current(void)\n{\n    return (psx_fiber_t)s_current;\n}\n\npsx_fiber_t psx_fiber_create(size_t stack_size, psx_fiber_entry entry, void* arg)\n{\n    const size_t min_stack_size = 64u * 1024u;\n    if (stack_size < min_stack_size) stack_size = min_stack_size;\n    psx_fiber_impl* f = (psx_fiber_impl*)calloc(1, sizeof(*f));\n    if (!f) return NULL;\n    f->stack = malloc(stack_size);\n    if (!f->stack) { free(f); return NULL; }\n    f->entry = entry;\n    f->arg = arg;\n    f->sp = ((uintptr_t)f->stack + stack_size) & ~(uintptr_t)0xFu;\n    f->callee_saved[0] = (uint64_t)(uintptr_t)f; /* x19: trampoline argument */\n    f->callee_saved[11] = (uint64_t)(uintptr_t)psx_fiber_android_trampoline; /* x30 */\n    return (psx_fiber_t)f;\n}\n\nvoid psx_fiber_switch(psx_fiber_t target)\n{\n    psx_fiber_impl* to = (psx_fiber_impl*)target;\n    psx_fiber_impl* from = s_current;\n    if (!to || !from || to == from) return;\n    s_current = to;\n    psx_fiber_android_switch(from, to);\n    /* On resume, s_current has been set by the fiber which switched here. */\n}\n\nvoid psx_fiber_destroy(psx_fiber_t fiber)\n{\n    psx_fiber_impl* f = (psx_fiber_impl*)fiber;\n    if (!f || f == s_current) return;\n    free(f->stack);\n    free(f);\n}\n#else /* POSIX: ucontext */"
 
-GL_DUMP_START = "static void pass_dump_generation(int gi) {\n    PassGen *g = &s_pgen[gi];\n    size_t n = (size_t)g->tex_w * (size_t)g->tex_h * 3u;\n    uint8_t *rgb = (uint8_t *)malloc(n);\n    if (!rgb) return;\n    glPixelStorei(GL_PACK_ALIGNMENT, 1);\n    for (uint32_t i = 0; i < g->n; i++) {\n        char path[512];\n        FILE *f;\n        glBindTexture(GL_TEXTURE_2D, s_pgen_tex[gi][i]);\n        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);\n        snprintf(path, sizeof path, \"%s/g%03llu_%02u_a%05u.png\", s_pdump_dir,\n                 (unsigned long long)s_pdump_gen, (unsigned)i,\n                 (unsigned)g->phase[i]);\n        f = fopen(path, \"wb\");\n        if (f) { (void)png_write_rgb(f, rgb, (uint32_t)g->tex_w, (uint32_t)g->tex_h); fclose(f); }\n    }\n    glBindTexture(GL_TEXTURE_2D, 0);\n    free(rgb);\n    s_pdump_gen++;\n    s_pdump_left--;\n}"
+GL_DUMP_START = """static void stereo_dump(const StereoPair *p) {
+    int w = p->tw[0], h = p->th[0];
+    size_t n = (size_t)w * h * 3u;
+    uint8_t *rgb = (uint8_t *)malloc(n * 2u);
+    uint8_t *sbs = (uint8_t *)malloc(n * 2u);
+    char path[512]; FILE *f;
+    if (!rgb || !sbs) { free(rgb); free(sbs); return; }
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    for (int eye = 0; eye < 2; eye++) {
+        glBindTexture(GL_TEXTURE_2D, p->tex[eye]);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb + eye * n);
+        snprintf(path, sizeof path, "%s/p%06llu_%s.png", s_stereo_dump_dir,
+                 (unsigned long long)p->id, eye ? "right" : "left");
+        f = fopen(path, "wb");
+        if (f) { (void)png_write_rgb(f, rgb + eye * n, w, h); fclose(f); }
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+    for (int row = 0; row < h; row++) for (int eye = 0; eye < 2; eye++)
+        memcpy(sbs + ((size_t)row * w * 2u + eye * w) * 3u,
+               rgb + eye * n + (size_t)row * w * 3u, (size_t)w * 3u);
+    snprintf(path, sizeof path, "%s/p%06llu_sbs.png", s_stereo_dump_dir,
+             (unsigned long long)p->id);
+    f = fopen(path, "wb");
+    if (f) { (void)png_write_rgb(f, sbs, w * 2u, h); fclose(f); }
+    if (s_stereo_capture_count < STEREO_CAPTURE_MAX) {
+        GLRenderStereoCapture *record = &s_stereo_captures[s_stereo_capture_count++];
+        record->pair_id = p->id; record->guest_cycle = p->cycle;
+        record->width = (uint32_t)w; record->height = (uint32_t)h;
+        memcpy(record->view_offset, p->view, sizeof record->view_offset);
+    }
+    free(rgb); free(sbs); s_stereo_dump_left--;
+}"""
 
-ANDROID_GL_DUMP = "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK: GLES has no glGetTexImage; pass dumps are\n * diagnostic tooling only and are disabled in the early Android target. */\nstatic void pass_dump_generation(int gi) { (void)gi; }\n#else\nstatic void pass_dump_generation(int gi) {\n    PassGen *g = &s_pgen[gi];\n    size_t n = (size_t)g->tex_w * (size_t)g->tex_h * 3u;\n    uint8_t *rgb = (uint8_t *)malloc(n);\n    if (!rgb) return;\n    glPixelStorei(GL_PACK_ALIGNMENT, 1);\n    for (uint32_t i = 0; i < g->n; i++) {\n        char path[512];\n        FILE *f;\n        glBindTexture(GL_TEXTURE_2D, s_pgen_tex[gi][i]);\n        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);\n        snprintf(path, sizeof path, \"%s/g%03llu_%02u_a%05u.png\", s_pdump_dir,\n                 (unsigned long long)s_pdump_gen, (unsigned)i,\n                 (unsigned)g->phase[i]);\n        f = fopen(path, \"wb\");\n        if (f) { (void)png_write_rgb(f, rgb, (uint32_t)g->tex_w, (uint32_t)g->tex_h); fclose(f); }\n    }\n    glBindTexture(GL_TEXTURE_2D, 0);\n    free(rgb);\n    s_pdump_gen++;\n    s_pdump_left--;\n}\n#endif"
+ANDROID_GL_DUMP = """#if defined(__ANDROID__)
+/* APE_ANDROID_SKIP_GL_TEX_READBACK: GLES has no glGetTexImage; stereo dumps
+ * are diagnostic-only and disabled on Android. */
+static void stereo_dump(const StereoPair *p) { (void)p; }
+#else
+""" + GL_DUMP_START + """
+#endif"""
 
 def patch_runtime_cmake(text: str) -> str:
     if "# APE_ANDROID_SHARED_RUNTIME" not in text:
