@@ -144,3 +144,11 @@ This is an unofficial community project maintained by **nvd123 / NVDEMU**. It us
 Ape Escape, its characters, original game code, music, graphics and related intellectual property belong to their respective rights holders, including Sony. This project is not endorsed by or affiliated with Sony Interactive Entertainment. You are responsible for sourcing and using game data and BIOS files lawfully. Do not upload copyrighted game images or retail BIOS files to public issues or pull requests.
 
 
+
+
+### Third-party notices
+
+The Geometry Interpolation implementation includes adapted upstream material.
+Its attribution, license and additional permissions are preserved in
+[`third_party/mstan/`](third_party/mstan/NOTICE.md). This project remains
+independently maintained.
