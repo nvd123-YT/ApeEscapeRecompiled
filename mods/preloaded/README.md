@@ -17,4 +17,8 @@ The **Challenge Pack** adds timed monkey hunts, no-damage runs, limited starting
 The separate **Hardcore Challenges** package adds default-off **Monkey Mayhem** and **Nightmare Mode**. Monkey Mayhem experimentally zeroes a community-reported monkey-action cooldown during active play; that RAM mapping requires in-game validation. Nightmare Mode automatically includes Monkey Mayhem with one-hit health, a three-life maximum that blocks extra-life increases, and a three-minute per-stage time limit. Its HUD displays the stage countdown.
 
 
-The experimental Interpolated Rendering package is not part of this release catalog. Its source and manifest are retained under `mods/development/packages/ape.enhancement.frame-smoothing` for development and hardware validation; do not move it into `mods/preloaded` until transition safety, visual smoothness and audio synchronization are qualified.
+The former replay-based Interpolated Rendering implementation is preserved for historical reference under `archive/legacy-frame-interpolation`. It is not compiled or exposed in the launcher; its old replay API was retired by the updated framework.
+
+**Geometry Interpolation** adds an optional 60 FPS OpenGL presentation path using captured camera, model and terrain geometry. It leaves guest simulation, physics, timers, input and audio at native cadence, defaults off, and falls back to native presentation in unsupported scenes. Display-rate output is not included.
+
+**Prop Visibility Correction** keeps resident mailboxes visible inside the world's current terrain-distance bound. It is a hidden, default-enabled visual compatibility fix; it does not alter game simulation or interaction logic.

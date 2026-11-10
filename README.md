@@ -83,10 +83,11 @@ The launcher keeps the usual configuration controls alongside this project's opt
 
 ### Optional mods
 
-Every mod feature starts **off**. Enabling one item does not turn on the others. The bundled catalog currently includes:
+Most optional features start **off**; the hidden Prop Visibility Correction is the single default-enabled visual compatibility fix. Enabling one optional feature does not turn on the others. The bundled catalog currently includes:
 
 - **Widescreen** — select 16:9, 21:9 or adaptive presentation.
-- **Interpolated Rendering** — an experimental development-only package for intermediate-frame presentation rates. It is retained under `mods/development` for testing but is not included in public release catalogs pending hardware, transition-safety and audio-sync validation.
+- **Geometry Interpolation** — optional 60 FPS OpenGL presentation from captured camera, model and terrain geometry. Guest simulation and audio retain native timing; unsupported scenes fall back to native presentation. It defaults off and does not include display-rate output.
+- **Prop Visibility Correction** — a hidden visual fix that keeps resident mailboxes visible within the terrain renderer's current distance bound. Enabled on fresh profiles; no gameplay timing or interaction behavior is changed.
 - **PGXP Precision** — optional geometry precision and texture handling.
 - **Skip FMVs** — skip full-motion videos through the game's normal completion path.
 - **Quick Gadget Select** — a compact gadget-selection row.
