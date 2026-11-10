@@ -45,11 +45,14 @@ int main(int argc, char **argv) {
   fs::remove_all(root, ec);
   fs::copy(source, root, fs::copy_options::recursive);
   const fs::path geometry_manifest =
-      source / "packages/ape.enhancement.geometry-interpolation/1.0.0/manifest.toml";
+      source /
+      "packages/ape.enhancement.geometry-interpolation/1.0.0/manifest.toml";
   if (!fs::exists(geometry_manifest))
-    return fail("Geometry Interpolation must be present in the release catalog");
+    return fail(
+        "Geometry Interpolation must be present in the release catalog");
   if (fs::exists(development / "packages/ape.enhancement.frame-smoothing"))
-    return fail("the retired render-pass frame-smoothing package must not remain in development");
+    return fail("the retired render-pass frame-smoothing package must not "
+                "remain in development");
 
   size_t manifest_count = 0;
   for (const fs::directory_entry &entry :
