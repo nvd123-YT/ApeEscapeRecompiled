@@ -7,7 +7,7 @@
  * First-stage two-Spike experiment.
  *
  * This deliberately is NOT the final local-co-op implementation:
- * - P2 follows P1's left-stick input and jump buttons.
+ * - P2 follows P1's processed left-stick movement and a small shared button mask.
  * - P2 is locked to the default club and cannot use gadgets.
  * - P2's object-collision registrations are suppressed; floor/terrain
  *   movement and its own animation/draw path still run.
@@ -26,6 +26,7 @@
 #define CAMERA_ADDRESS UINT32_C(0x800E68D0)
 #define HUD_ADDRESS UINT32_C(0x800F4DB0)
 #define GADGET_ADDRESS UINT32_C(0x800F5120)
+#define GADGET_AUX_ADDRESS UINT32_C(0x800F51D0)
 
 #define GAME_PHASE_ADDRESS UINT32_C(0x800F447C)
 #define GAME_STAGE_ADDRESS UINT32_C(0x800F4476)
@@ -34,11 +35,12 @@
 #define GAME_PLAY_SUBMODE_ADDRESS UINT32_C(0x800F44A2)
 
 enum {
-    SPIKE_BYTES = 0x150u,
+    SPIKE_BYTES = 0x14Cu,
     PAD_BYTES = 0x1C0u,
-    CAMERA_BYTES = 0x50u,
-    HUD_BYTES = 0x30u,
+    CAMERA_BYTES = 0x42u,
+    HUD_BYTES = 0x24u,
     GADGET_BYTES = 0x80u,
+    GADGET_AUX_BYTES = 0x1Cu,
 
     PAD_INPUT_OFFSET = 0x158u,
     PAD_HELD_OFFSET = 0x158u,
@@ -56,7 +58,7 @@ enum {
     GAMEPLAY_PHASE = 3u,
     NORMAL_PLAY_MODE = 0u,
     CUTSCENE_SUBMODE = 0x0Bu,
-    P2_JUMP_BUTTON_MASK = 0x0000000Au,
+    P2_SHARED_BUTTON_MASK = 0x0000000Au,
     SPAWN_SEPARATION = 0x00000100u
 };
 
@@ -81,6 +83,19 @@ static void write_guest_words(uint32_t address, const uint32_t *in,
     uint32_t offset;
     for (offset = 0u; offset < bytes; offset += 4u)
         psx_mod_write_word(address + offset, in[offset / 4u]);
+}
+
+static void read_guest_bytes(uint32_t address, uint8_t *out, uint32_t bytes) {
+    uint32_t offset;
+    for (offset = 0u; offset < bytes; ++offset)
+        out[offset] = psx_mod_read_byte(address + offset);
+}
+
+static void write_guest_bytes(uint32_t address, const uint8_t *in,
+                              uint32_t bytes) {
+    uint32_t offset;
+    for (offset = 0u; offset < bytes; ++offset)
+        psx_mod_write_byte(address + offset, in[offset]);
 }
 
 static void copy_guest_words(uint32_t destination, uint32_t source,
@@ -146,9 +161,9 @@ static void initialize_second_spike(uint16_t stage, uint16_t area) {
 
 static void prepare_second_pad(const uint32_t *p1_pad) {
     const uint32_t held =
-        p1_pad[PAD_HELD_OFFSET / 4u] & P2_JUMP_BUTTON_MASK;
+        p1_pad[PAD_HELD_OFFSET / 4u] & P2_SHARED_BUTTON_MASK;
     const uint32_t pressed =
-        p1_pad[PAD_PRESSED_OFFSET / 4u] & P2_JUMP_BUTTON_MASK;
+        p1_pad[PAD_PRESSED_OFFSET / 4u] & P2_SHARED_BUTTON_MASK;
 
     /* Keep P2's own history ring, but supply this frame's processed stick
        state from P1. That reuses Ape's camera-relative movement calculation. */
@@ -169,9 +184,10 @@ static void prepare_second_pad(const uint32_t *p1_pad) {
 static void second_spike_update(struct CPUState *cpu, uint32_t address) {
     uint32_t p1_spike[WORD_COUNT(SPIKE_BYTES)];
     uint32_t p1_pad[WORD_COUNT(PAD_BYTES)];
-    uint32_t p1_camera[WORD_COUNT(CAMERA_BYTES)];
+    uint8_t p1_camera[CAMERA_BYTES];
     uint32_t p1_hud[WORD_COUNT(HUD_BYTES)];
     uint32_t p1_gadget[WORD_COUNT(GADGET_BYTES)];
+    uint32_t p1_gadget_aux[WORD_COUNT(GADGET_AUX_BYTES)];
     uint32_t p1_game_mode;
     uint16_t stage;
     uint16_t area;
@@ -196,9 +212,10 @@ static void second_spike_update(struct CPUState *cpu, uint32_t address) {
        only once in the original update that follows this hook. */
     read_guest_words(SPIKE_ADDRESS, p1_spike, SPIKE_BYTES);
     read_guest_words(PAD_ADDRESS, p1_pad, PAD_BYTES);
-    read_guest_words(CAMERA_ADDRESS, p1_camera, CAMERA_BYTES);
+    read_guest_bytes(CAMERA_ADDRESS, p1_camera, CAMERA_BYTES);
     read_guest_words(HUD_ADDRESS, p1_hud, HUD_BYTES);
     read_guest_words(GADGET_ADDRESS, p1_gadget, GADGET_BYTES);
+    read_guest_words(GADGET_AUX_ADDRESS, p1_gadget_aux, GADGET_AUX_BYTES);
     p1_game_mode = psx_mod_read_word(GAME_PLAY_MODE_ADDRESS);
 
     /* Project P2 into the game's single-player globals. */
@@ -228,9 +245,10 @@ static void second_spike_update(struct CPUState *cpu, uint32_t address) {
 
     write_guest_words(SPIKE_ADDRESS, p1_spike, SPIKE_BYTES);
     write_guest_words(PAD_ADDRESS, p1_pad, PAD_BYTES);
-    write_guest_words(CAMERA_ADDRESS, p1_camera, CAMERA_BYTES);
+    write_guest_bytes(CAMERA_ADDRESS, p1_camera, CAMERA_BYTES);
     write_guest_words(HUD_ADDRESS, p1_hud, HUD_BYTES);
     write_guest_words(GADGET_ADDRESS, p1_gadget, GADGET_BYTES);
+    write_guest_words(GADGET_AUX_ADDRESS, p1_gadget_aux, GADGET_AUX_BYTES);
     psx_mod_write_word(GAME_PLAY_MODE_ADDRESS, p1_game_mode);
 
     psx_mod_counter_add("ape.coop.two-spikes.p2_updates", 1u);
