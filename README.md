@@ -150,5 +150,6 @@ Ape Escape, its characters, original game code, music, graphics and related inte
 
 The Geometry Interpolation implementation includes adapted upstream material.
 Its attribution, license and additional permissions are preserved in
-[`third_party/mstan/`](third_party/mstan/NOTICE.md). This project remains
+[`third_party/mstan/`](third_party/mstan/NOTICE.md). The same notice files are
+included in the Windows, macOS and AppImage packages. This project remains
 independently maintained.
