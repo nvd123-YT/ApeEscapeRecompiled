@@ -50,7 +50,7 @@ def check_patch_is_idempotent() -> None:
         if "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" not in first_gl:
             raise SystemExit("Android GLES must exclude unsupported glGetTexImage diagnostic code")
         android_gl = first_gl.split("#else", 1)[0]
-        if "glGetTexImage" in android_gl:
+        if "glGetTexImage(" in android_gl:
             raise SystemExit("Android GLES branch must not call desktop glGetTexImage")
         if "add_library(${target} SHARED" not in first_cmake:
             raise SystemExit("Android runtime target is not a shared library")
