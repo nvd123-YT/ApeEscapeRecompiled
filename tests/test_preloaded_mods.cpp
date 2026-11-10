@@ -67,8 +67,8 @@ int main(int argc, char **argv) {
       return fail("manifest parse failed: " + error);
     }
   }
-  if (manifest_count != 11)
-    return fail("expected eleven title-owned package manifests");
+  if (manifest_count != 12)
+    return fail("expected eleven release manifests and one development-only manifest");
 
   PSXRecompV4::mod_clear_plugins_for_tests();
   for (const char *id : {"ape.widescreen.16-9",
@@ -101,7 +101,9 @@ int main(int argc, char **argv) {
                          "ape.challenge.limited-lives",
                          "ape.challenge.random-challenge",
                          "ape.challenge.monkey-mayhem",
-                         "ape.challenge.nightmare-mode"}) {
+                         "ape.challenge.nightmare-mode",
+                         "ape.coop.two-spikes",
+                         "ape.coop.two-spikes-collision-filter"}) {
     if (!PSXRecompV4::mod_register_activation_plugin(id, no_op_plugin))
       return fail(std::string("could not register test plugin ") + id);
   }
@@ -112,8 +114,8 @@ int main(int argc, char **argv) {
     return fail("catalog scan failed: " + error);
   if (!manager.load_state(&error))
     return fail("default state failed: " + error);
-  if (manager.packages().size() != 11)
-    return fail("expected eleven title-owned package families");
+  if (manager.packages().size() != 12)
+    return fail("expected eleven release package families and one development-only family");
 
   const auto default_plan = manager.resolve(kGameId, "", kDiscSha256);
   if (!default_plan.ok || !default_plan.writes.empty() ||
@@ -430,8 +432,36 @@ int main(int argc, char **argv) {
     }
   }
 
+  // The two-Spike prototype is experimental and must remain opt-in. Enabling
+  // it resolves both native hooks required by its package manifest.
+  if (!manager.set_feature_enabled("ape.enhancement.two-spikes-prototype",
+                                   "two-spike-preview", true, &error)) {
+    return fail(error);
+  }
+  {
+    const auto two_spike_plan = manager.resolve(kGameId, "", kDiscSha256);
+    if (!two_spike_plan.ok || !two_spike_plan.writes.empty() ||
+        two_spike_plan.plugins.size() != 2 ||
+        two_spike_plan.plugins[0].id != "ape.coop.two-spikes" ||
+        two_spike_plan.plugins[1].id !=
+            "ape.coop.two-spikes-collision-filter") {
+      return fail("wrong Two Spike Preview plugin plan");
+    }
+  }
+  if (!manager.set_feature_enabled("ape.enhancement.two-spikes-prototype",
+                                   "two-spike-preview", false, &error)) {
+    return fail(error);
+  }
+  {
+    const auto two_spike_off_plan = manager.resolve(kGameId, "", kDiscSha256);
+    if (!two_spike_off_plan.ok || !two_spike_off_plan.plugins.empty() ||
+        !two_spike_off_plan.writes.empty()) {
+      return fail("Two Spike Preview remained active after disabling");
+    }
+  }
+
   fs::remove_all(root, ec);
-  std::cout << "Ape Escape catalog: 10 release packages + 1 development-only "
-               "interpolation package; gameplay features remain opt-in.\n";
+  std::cout << "Ape Escape catalog: 11 release packages + 1 development-only "
+               "interpolation package; gameplay features remain opt-in.\\n";
   return 0;
 }
