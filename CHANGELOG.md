@@ -6,7 +6,7 @@ All notable changes to Ape Escape Recompiled — Enhanced Edition are recorded h
 ## [Unreleased]
 
 ### Added
-- Moved experimental Interpolated Rendering out of the public release catalog and into `mods/development`. Its native implementation and seven rate options remain available for developer testing, but the public launcher no longer offers interpolation before transition, visual and audio-sync validation is complete.
+- Added the default-off **Geometry Interpolation** package, adapted from mstan's upstream implementation. It presents supported gameplay at 60 FPS from original camera/model/terrain geometry while preserving native simulation and audio cadence; unsupported scenes fall back to native presentation. The old render-pass replay implementation is archived outside the runtime build.
 - Added the framework's shared native `v_wait` caller contract test to CTest. It compares the original and accelerated paths against the regenerated SCUS-94423 caller, while keeping retail-derived code in temporary test files.
 - Adopted the framework's ordered HLE textured batching default for enhanced builds and its audited Ape Escape native idle-wait sites. Fresh reference-profile builds use LLE; `-DPSX_GL_BATCH_IMPL=LLE` and `-DAPE_NATIVE_IDLE_WAIT=OFF` remain available for A/B/reference builds.
 - Set the optional Widescreen aspect choice to **Fit to screen** (adaptive) when the player enables the experimental feature; Widescreen itself remains off so the original 4:3 presentation is preserved.
@@ -18,7 +18,7 @@ All notable changes to Ape Escape Recompiled — Enhanced Edition are recorded h
 - Configured the high-coverage PGXP hook build for dataflow-only vertex precision and exact GTE projection (`pgxp_position_fallback = false`, `pgxp_preserve_projection = true`, `pgxp_tolerance = -1.0`) behind the single default-off PGXP mod switch. This is a source-level correction; live visual confirmation of wobble, seams, and texture warping is still outstanding.
 - Added an idempotent, pin-checked clean-room PGXP projection patch that follows DuckStation's relevant GTE math more closely: both SF modes, IR limit-mode clamping, and the H/2 near-depth floor. The upstream PGXP test is now built and run on Windows, macOS, and Linux; this targets precision loss in near/saturated projections, not a guarantee that every scene or cutscene is wobble-free.
 - Clarified that Widescreen's current projection-squash path remains experimental and can show geometry/background/culling artifacts; the feature stays off by default and 4:3 remains the reference presentation.
-- Restricted experimental interpolated rendering to the active gameplay phase and re-checks the phase before submitting replay passes, avoiding unsafe interpolation of title, loading, briefing, flyover, warp-in, and transition frames.
+- Updated PSXRecomp to the release-tested `release/ape-v0.5.7` revision (`1b84d4f`), adding the geometry-presentation APIs and refreshing its `recomp-net` and `retcomm-rbengine` submodule pins while retaining the existing optimization baseline.
 
 ### Fixed
 - Stop cached OST autoplay and manual soundtrack playback before launch/relaunch returns control to the game runtime, preventing music from spilling over the Ape Escape title screen. Launch also disables shuffle autoplay for that session.

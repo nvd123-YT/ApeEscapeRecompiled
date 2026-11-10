@@ -44,13 +44,12 @@ int main(int argc, char **argv) {
   std::error_code ec;
   fs::remove_all(root, ec);
   fs::copy(source, root, fs::copy_options::recursive);
-  const fs::path release_frame_smoothing =
-      source / "packages/ape.enhancement.frame-smoothing";
-  if (fs::exists(release_frame_smoothing))
-    return fail("frame smoothing must be development-only");
-  const fs::path development_packages = development / "packages";
-  fs::copy(development_packages, root / "packages",
-           fs::copy_options::recursive);
+  const fs::path geometry_manifest =
+      source / "packages/ape.enhancement.geometry-interpolation/1.0.0/manifest.toml";
+  if (!fs::exists(geometry_manifest))
+    return fail("Geometry Interpolation must be present in the release catalog");
+  if (fs::exists(development / "packages/ape.enhancement.frame-smoothing"))
+    return fail("the retired render-pass frame-smoothing package must not remain in development");
 
   size_t manifest_count = 0;
   for (const fs::directory_entry &entry :
@@ -74,13 +73,7 @@ int main(int argc, char **argv) {
   for (const char *id : {"ape.widescreen.16-9",
                          "ape.widescreen.21-9",
                          "ape.widescreen.adaptive",
-                         "ape.frame-smoothing.60",
-                         "ape.frame-smoothing.90",
-                         "ape.frame-smoothing.120",
-                         "ape.frame-smoothing.144",
-                         "ape.frame-smoothing.165",
-                         "ape.frame-smoothing.240",
-                         "ape.frame-smoothing.display",
+                         "ape.presentation.capture",
                          "ape.fmv.skip",
                          "ape.gadgets.quick-select",
                          "ape.gadgets.sky-flyer-triple-jump",
@@ -244,32 +237,18 @@ int main(int argc, char **argv) {
 
   if (!manager.set_feature_enabled("ape.enhancement.widescreen", "widescreen",
                                    false, &error) ||
-      !manager.set_feature_enabled("ape.enhancement.frame-smoothing",
-                                   "temporal-blending", true, &error)) {
+      !manager.set_feature_enabled("ape.enhancement.geometry-interpolation",
+                                   "geometry-interpolation", true, &error)) {
     return fail(error);
   }
-  for (const auto &[choice, plugin] :
-       {std::pair{"60", "ape.frame-smoothing.60"},
-        std::pair{"90", "ape.frame-smoothing.90"},
-        std::pair{"120", "ape.frame-smoothing.120"},
-        std::pair{"144", "ape.frame-smoothing.144"},
-        std::pair{"165", "ape.frame-smoothing.165"},
-        std::pair{"240", "ape.frame-smoothing.240"},
-        std::pair{"display", "ape.frame-smoothing.display"}}) {
-    if (!manager.set_feature_option("ape.enhancement.frame-smoothing",
-                                    "temporal-blending", "rate", choice,
-                                    &error)) {
-      return fail(error);
-    }
-    const auto fps_plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!fps_plan.ok || !fps_plan.writes.empty() ||
-        fps_plan.plugins.size() != 1 || fps_plan.plugins.front().id != plugin) {
-      return fail(std::string("wrong interpolated frame-rate plan for ") +
-                  choice);
-    }
+  const auto geometry_plan = manager.resolve(kGameId, "", kDiscSha256);
+  if (!geometry_plan.ok || !geometry_plan.writes.empty() ||
+      geometry_plan.plugins.size() != 1 ||
+      geometry_plan.plugins.front().id != "ape.presentation.capture") {
+    return fail("Geometry Interpolation did not select its native presenter");
   }
-  if (!manager.set_feature_enabled("ape.enhancement.frame-smoothing",
-                                   "temporal-blending", false, &error) ||
+  if (!manager.set_feature_enabled("ape.enhancement.geometry-interpolation",
+                                   "geometry-interpolation", false, &error) ||
       !manager.set_feature_enabled("ape.enhancement.quick-gadget-select",
                                    "quick-gadget-select", true, &error)) {
     return fail(error);
@@ -431,7 +410,7 @@ int main(int argc, char **argv) {
   }
 
   fs::remove_all(root, ec);
-  std::cout << "Ape Escape catalog: 10 release packages + 1 development-only "
-               "interpolation package; gameplay features remain opt-in.\n";
+  std::cout << "Ape Escape catalog: 11 release packages, including default-off "
+               "Geometry Interpolation; gameplay features remain opt-in.\n";
   return 0;
 }

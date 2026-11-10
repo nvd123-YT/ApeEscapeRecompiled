@@ -54,9 +54,9 @@ guest_cycle_scale_gate = { addr = 0x800F447C, size = 1, value = 3 }
 auto_skip_fmv = false
 offer_skip_fmv = false
 
-# Experimental frame interpolation is retained for developer testing only and
-# excluded from the release catalog until hardware and audio-sync QA is complete.
-# Keep generic Display controls hidden and ignore stale settings.toml values.
+# Geometry Interpolation is exposed only through the default-off title mod.
+# Generic framework frame-interpolation controls stay hidden; the geometry
+# presenter uses 60 FPS only for qualified pairs and otherwise keeps native presentation.
 offer_frame_interpolation = false
 
 # OpenGL renderer by default. Settings also exposes Software and Vulkan when
@@ -66,7 +66,7 @@ offer_vulkan = true
 
 # Settings > Display exposes Native, 720p, 1080p, 1440p, 4K, 5K, 8K and
 # Match display. Start with the same 4K preset as Spider-Man; players can
-# lower it to leave more rendering time for intermediate frames.
+# lower it to leave more rendering time for optional geometry presentation.
 internal_resolution = "4k"
 antialiasing = true
 texture_filtering = "bilinear"

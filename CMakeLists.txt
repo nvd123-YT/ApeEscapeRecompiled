@@ -218,6 +218,19 @@ if(NOT EMSCRIPTEN AND NOT ANDROID)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(ape_presentation_capture_test
+        tests/test_presentation_capture.cpp src/mods/ape_presentation_capture.cpp
+        "${PSXRECOMP_ROOT}/runtime/src/presentation_scene.c"
+        "${PSXRECOMP_ROOT}/runtime/src/presentation_draw.c")
+    target_include_directories(ape_presentation_capture_test PRIVATE "${PSXRECOMP_ROOT}/runtime/include")
+    if(MSVC)
+        target_compile_options(ape_presentation_capture_test PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(ape_presentation_capture_test PRIVATE -UNDEBUG)
+        target_link_libraries(ape_presentation_capture_test PRIVATE m)
+    endif()
+    add_test(NAME ape_presentation_capture_test COMMAND ape_presentation_capture_test)
+
     add_executable(ape_stick_response_test
         tests/test_stick_response.c
         "${PSXRECOMP_ROOT}/runtime/src/psx_stick.c"
