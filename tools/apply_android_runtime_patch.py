@@ -129,6 +129,22 @@ def patch_dma_host_clock(text: str) -> str:
     return text.replace(DMA_CLOCK_START, ANDROID_DMA_CLOCK, 1)
 
 
+
+GL_CLEAR_DEPTH_START = "        glClearDepth(1.0);"
+ANDROID_GL_CLEAR_DEPTH = """#if defined(__ANDROID__)
+        /* APE_ANDROID_GL_CLEAR_DEPTH: GLES exposes glClearDepthf, not glClearDepth. */
+        glClearDepthf(1.0f);
+#else
+        glClearDepth(1.0);
+#endif"""
+
+def patch_android_gl_clear_depth(text: str) -> str:
+    if "APE_ANDROID_GL_CLEAR_DEPTH" in text:
+        return text
+    if text.count(GL_CLEAR_DEPTH_START) != 1:
+        raise ValueError("Expected one known desktop glClearDepth call; refusing an unsafe Android GLES patch.")
+    return text.replace(GL_CLEAR_DEPTH_START, ANDROID_GL_CLEAR_DEPTH, 1)
+
 def patch_runtime_cmake(text: str) -> str:
     if "# APE_ANDROID_SHARED_RUNTIME" not in text:
         if text.count(RUNTIME_START) != 1:
@@ -200,6 +216,7 @@ def apply(framework_root: Path) -> None:
     cmake_text = runtime_cmake.read_text(encoding="utf-8-sig")
     main_text = main_cpp.read_text(encoding="utf-8-sig")
     gl_text = gl_renderer.read_text(encoding="utf-8-sig")
+    gl_text = patch_android_gl_clear_depth(gl_text)
     fiber_text = fiber_file.read_text(encoding="utf-8-sig")
     dma_text = dma_file.read_text(encoding="utf-8-sig")
     runtime_cmake.write_text(patch_runtime_cmake(cmake_text), encoding="utf-8")

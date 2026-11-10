@@ -28,7 +28,7 @@ def check_patch_is_idempotent() -> None:
             PATCH.RENDERER_FALLBACK_START + '\n  return argc + (argv != nullptr);\n}\n',
             encoding="utf-8",
         )
-        gl_renderer.write_text(PATCH.GL_DUMP_START + "\n", encoding="utf-8")
+        gl_renderer.write_text('        glClearDepth(1.0);\n' + PATCH.GL_DUMP_START + "\n", encoding="utf-8")
         fiber_file.write_text('#include "psx_fiber.h"\n#else /* POSIX: ucontext */\n#endif /* _WIN32 */\n', encoding="utf-8")
         dma_file.write_text('#include <time.h>\nstatic unsigned long long hold_host_ticks(void) {\n    struct timespec ts; timespec_get(&ts, TIME_UTC);   /* C11; diagnostics only */\n    return (unsigned long long)ts.tv_sec * 1000000000ull + (unsigned long long)ts.tv_nsec;\n}\n', encoding="utf-8")
         PATCH.apply(framework)
@@ -52,9 +52,14 @@ def check_patch_is_idempotent() -> None:
             raise SystemExit("Android AArch64 fibers are not implemented")
         if "psx_fiber_android_switch" not in first_fiber or "getcontext(" in first_fiber.split("#else /* POSIX: ucontext */", 1)[0]:
             raise SystemExit("Android fibers must avoid Bionic's unavailable ucontext functions")
-        if "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" not in first_gl:
-            raise SystemExit("Android GLES must exclude unsupported glGetTexImage diagnostic code")
-        android_gl = first_gl.split("#else", 1)[0]
+        if "APE_ANDROID_GL_CLEAR_DEPTH" not in first_gl or "glClearDepthf(1.0f)" not in first_gl:
+            raise SystemExit("Android GLES must use glClearDepthf for depth-buffer initialization")
+        android_depth = first_gl.split("#else", 1)[0]
+        if "glClearDepth(1.0)" in android_depth:
+            raise SystemExit("Android GLES branch must not call desktop glClearDepth")
+        stereo_start = first_gl.index("#if defined(__ANDROID__)\\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:")
+        stereo_end = first_gl.index("#else", stereo_start)
+        android_gl = first_gl[stereo_start:stereo_end]
         if "glGetTexImage(" in android_gl:
             raise SystemExit("Android GLES branch must not call desktop glGetTexImage")
         if "s_stereo_dump_left = 0;" not in android_gl:
