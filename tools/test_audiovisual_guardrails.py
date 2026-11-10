@@ -7,10 +7,10 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 presentation_source = (ROOT / "src/mods/ape_presentation_capture.cpp").read_text(encoding="utf-8")
 for pattern in (
-    r"void\\s+activate_live\\s*\\(\\s*\\)",
-    r"\\bgpu_capture\\s*=\\s*active\\.load\\(\\)\\s*;",
-    r"\\blive_enabled\\s*=\\s*active\\.load\\(\\)\\s*;",
-    r"psx_presentation_gpu_set_provider\\s*\\(\\s*live_present\\s*,\\s*nullptr\\s*\\)\\s*;",
+    r"void\s+activate_live\s*\(\s*\)",
+    r"\bgpu_capture\s*=\s*active\.load\(\)\s*;",
+    r"\blive_enabled\s*=\s*active\.load\(\)\s*;",
+    r"psx_presentation_gpu_set_provider\s*\(\s*live_present\s*,\s*nullptr\s*\)\s*;",
 ):
     if not re.search(pattern, presentation_source):
         raise SystemExit("Geometry Interpolation lost a required native-presentation hook: " + pattern)
