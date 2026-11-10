@@ -22,7 +22,7 @@ The prototype is disabled by default. Select **Mods â†’ Experimental Gameplay â†
 1. Confirm the game boots and plays normally with the feature disabled.
 2. Enable the feature and enter a normal level.
 3. Check that Spike 2 appears beside Spike 1 and follows its walking/jump animation.
-4. Move, stop, jump, and change direction; check that both bodies stay visible.
+4. Move, stop, and change direction; check that both bodies stay visible. Note whether the limited shared button mask triggers any unexpected action.
 5. Change areas or restart a stage; confirm Spike 2 respawns beside Spike 1.
 6. Check that Player 1's camera, HUD, gadget inventory, and normal controls behave as before.
 
