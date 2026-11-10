@@ -47,7 +47,7 @@ def check_patch_is_idempotent() -> None:
             raise SystemExit("Android AArch64 fibers are not implemented")
         if "psx_fiber_android_switch" not in first_fiber or "getcontext(" in first_fiber.split("#else /* POSIX: ucontext */", 1)[0]:
             raise SystemExit("Android fibers must avoid Bionic's unavailable ucontext functions")
-        if "#if defined(__ANDROID__)\\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" not in first_gl:
+        if "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" not in first_gl:
             raise SystemExit("Android GLES must exclude legacy pass-dump glGetTexImage diagnostics")
         if "add_library(${target} SHARED" not in first_cmake:
             raise SystemExit("Android runtime target is not a shared library")
@@ -72,7 +72,7 @@ def check_patch_is_idempotent() -> None:
 
 def check_current_framework_stereo_dump_patch() -> None:
     patched = PATCH.patch_android_gl_renderer(PATCH.GL_STEREO_DUMP_START)
-    marker = "#if defined(__ANDROID__)\\n/* APE_ANDROID_SKIP_STEREO_DUMP_TEX_READBACK:"
+    marker = "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_STEREO_DUMP_TEX_READBACK:"
     if marker not in patched:
         raise SystemExit("Current PSXRecomp stereo diagnostic readback is not disabled on Android")
     android_branch = patched.split("#else", 1)[0]

@@ -119,8 +119,8 @@ static void stereo_dump(const StereoPair *p) {
 
 
 def patch_android_gl_renderer(gl_text: str) -> str:
-    if ("#if defined(__ANDROID__)\\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" in gl_text or
-            "#if defined(__ANDROID__)\\n/* APE_ANDROID_SKIP_STEREO_DUMP_TEX_READBACK:" in gl_text):
+    if ("#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" in gl_text or
+            "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_STEREO_DUMP_TEX_READBACK:" in gl_text):
         return gl_text
     if gl_text.count(GL_DUMP_START) == 1:
         return gl_text.replace(GL_DUMP_START, ANDROID_GL_DUMP, 1)
