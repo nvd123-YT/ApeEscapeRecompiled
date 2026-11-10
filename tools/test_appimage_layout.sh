@@ -32,6 +32,7 @@ check_dir()  { [ -d "$data_dir/$1" ] || { echo "MISSING dir:  $1" >&2; fail=1; }
 
 for d in saves cache mods mods/bundled assets bios; do check_dir "$d"; done
 for f in game.toml input.ini START_HERE.txt LICENSE README.md \
+         third_party/mstan/LICENSE third_party/mstan/PERMISSIONS.md third_party/mstan/NOTICE.md \
          bios/openbios.bin bios/OpenBIOS.LICENSE .appimage-layout-version \
          docs/AOT_OVERLAYS.md AOT_CACHE_AUDIT.json; do
     check_file "$f"

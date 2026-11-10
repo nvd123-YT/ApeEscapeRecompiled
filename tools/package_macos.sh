@@ -62,6 +62,14 @@ psx_add_mod_catalog --build-path "$BUILD_DIR" --stage "$RESOURCES" --runtime-tar
 
 cp "$ROOT/LICENSE" "$RESOURCES/LICENSE"
 cp "$ROOT/README.md" "$RESOURCES/README.md"
+
+# Preserve upstream-derived component notices in the packaged app bundle.
+mkdir -p "$RESOURCES/third_party/mstan"
+for notice in LICENSE PERMISSIONS.md NOTICE.md; do
+    source="$ROOT/third_party/mstan/$notice"
+    [ -f "$source" ] || { echo "missing upstream mstan notice: $source" >&2; exit 1; }
+    cp "$source" "$RESOURCES/third_party/mstan/$notice"
+done
 [ ! -f "$ROOT/RELEASE_NOTES.md" ] || cp "$ROOT/RELEASE_NOTES.md" "$RESOURCES/RELEASE_NOTES.md"
 cp "$ROOT/docs/AOT_OVERLAYS.md" "$RESOURCES/AOT_OVERLAYS.md"
 mkdir -p "$RESOURCES/docs/mod-development"

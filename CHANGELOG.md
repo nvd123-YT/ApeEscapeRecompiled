@@ -14,12 +14,12 @@ All notable changes to Ape Escape Recompiled — Enhanced Edition are recorded h
 - Adopted the framework-owned Internal Resolution controls: 1x–32x, 720p through 8K, Match display, Auto/dynamic resolution, and supersampling. Fresh profiles start at 4x; **Game default** follows Ape Escape's configured 4K baseline. No title-local shadow package is shipped.
 
 ### Fixed
+- Include the upstream Geometry Interpolation license, permissions and attribution in Windows, macOS and AppImage packages.
 - Corrected the Android workflow's private-assets repository guard to match the configured repository identifier.
-- Bumped PSXRecomp to `4102438ab4c5aadf010878029d0324ef6382e521`, the narrow upstream revision containing the PGXP depth-buffer and seam-expansion renderer, then enabled `pgxp_depth_buffer = true` and `pgxp_seam = "wide"` for high-resolution rendering. Precise culling is enabled only when the optional PGXP mod itself is selected. These changes target remaining terrain cracks; they are not a claim that cutscene wobble, every texture warp, or shaking with PGXP disabled is fixed until matched visual captures confirm it.
+- Pinned PSXRecomp to `1b84d4f` (`release/ape-v0.5.7`), retaining the optimized runtime and PGXP depth-buffer/seam-expansion renderer while adding the geometry-presentation APIs. Precise culling remains confined to the default-off PGXP mod.
 - Configured the high-coverage PGXP hook build for dataflow-only vertex precision and exact GTE projection (`pgxp_position_fallback = false`, `pgxp_preserve_projection = true`, `pgxp_tolerance = -1.0`) behind the single default-off PGXP mod switch. This is a source-level correction; live visual confirmation of wobble, seams, and texture warping is still outstanding.
 - Added an idempotent, pin-checked clean-room PGXP projection patch that follows DuckStation's relevant GTE math more closely: both SF modes, IR limit-mode clamping, and the H/2 near-depth floor. The upstream PGXP test is now built and run on Windows, macOS, and Linux; this targets precision loss in near/saturated projections, not a guarantee that every scene or cutscene is wobble-free.
 - Clarified that Widescreen's current projection-squash path remains experimental and can show geometry/background/culling artifacts; the feature stays off by default and 4:3 remains the reference presentation.
-- Updated PSXRecomp to the release-tested `release/ape-v0.5.7` revision (`1b84d4f`), adding the geometry-presentation APIs and refreshing its `recomp-net` and `retcomm-rbengine` submodule pins while retaining the existing optimization baseline.
 
 ### Fixed
 - Stop cached OST autoplay and manual soundtrack playback before launch/relaunch returns control to the game runtime, preventing music from spilling over the Ape Escape title screen. Launch also disables shuffle autoplay for that session.
