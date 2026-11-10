@@ -117,7 +117,7 @@ def check_project_scaffolding() -> None:
         "setup-android", "assembleDebug", "upload-artifact", "app-debug.apk",
         "download_disc.py", "chdman extractcd", "prepare_disc.py",
         "psxrecomp-game --config game.toml",
-        "GAME_ASSETS_REPO: NVDEMU/apeescapeprivateassets",
+        "GAME_ASSETS_REPO: nvd123-YT/apeescapeprivateassets",
         "GAME_ASSETS_FILENAME: Ape.Escape.USA.chd",
     ):
         if token not in workflow:
