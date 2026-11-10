@@ -116,8 +116,8 @@ int main(int argc, char **argv) {
   if (!manager.load_state(&error))
     return fail("default state failed: " + error);
   if (manager.packages().size() != 12)
-    return fail(
-        "expected eleven release package families and one development-only family");
+    return fail("expected eleven release package families and one "
+                "development-only family");
 
   const auto default_plan = manager.resolve(kGameId, "", kDiscSha256);
   if (!default_plan.ok || !default_plan.writes.empty() ||
