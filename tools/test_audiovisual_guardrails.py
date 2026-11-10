@@ -6,13 +6,14 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 presentation_source = (ROOT / "src/mods/ape_presentation_capture.cpp").read_text(encoding="utf-8")
-for token in (
-    "void activate_live()",
-    "gpu_capture=active.load();live_enabled=active.load();",
-    "psx_presentation_gpu_set_provider(live_present,nullptr);",
+for pattern in (
+    r"void\\s+activate_live\\s*\\(\\s*\\)",
+    r"\\bgpu_capture\\s*=\\s*active\\.load\\(\\)\\s*;",
+    r"\\blive_enabled\\s*=\\s*active\\.load\\(\\)\\s*;",
+    r"psx_presentation_gpu_set_provider\\s*\\(\\s*live_present\\s*,\\s*nullptr\\s*\\)\\s*;",
 ):
-    if token not in presentation_source:
-        raise SystemExit("Geometry Interpolation lost a required native-presentation hook: " + token)
+    if not re.search(pattern, presentation_source):
+        raise SystemExit("Geometry Interpolation lost a required native-presentation hook: " + pattern)
 
 config = (ROOT / "game.toml").read_text(encoding="utf-8")
 if 'aspect_ratio = "4:3"' not in config:
