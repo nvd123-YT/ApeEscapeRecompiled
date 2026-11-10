@@ -104,7 +104,7 @@ GL_DUMP_START = """static void stereo_dump(const StereoPair *p) {
 ANDROID_GL_DUMP = """#if defined(__ANDROID__)
 /* APE_ANDROID_SKIP_GL_TEX_READBACK: GLES has no glGetTexImage; stereo dumps
  * are diagnostic-only and disabled on Android. */
-static void stereo_dump(const StereoPair *p) { (void)p; }
+static void stereo_dump(const StereoPair *p) { (void)p; s_stereo_dump_left = 0; }
 #else
 """ + GL_DUMP_START + """
 #endif"""

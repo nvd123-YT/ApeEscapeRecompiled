@@ -52,6 +52,8 @@ def check_patch_is_idempotent() -> None:
         android_gl = first_gl.split("#else", 1)[0]
         if "glGetTexImage(" in android_gl:
             raise SystemExit("Android GLES branch must not call desktop glGetTexImage")
+        if "s_stereo_dump_left = 0;" not in android_gl:
+            raise SystemExit("Android stereo diagnostics must stop the pending dump loop")
         if "add_library(${target} SHARED" not in first_cmake:
             raise SystemExit("Android runtime target is not a shared library")
         if 'OUTPUT_NAME "ApeEscapeRecomp"' not in first_cmake:
