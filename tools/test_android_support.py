@@ -57,7 +57,7 @@ def check_patch_is_idempotent() -> None:
         android_depth = first_gl.split("#else", 1)[0]
         if "glClearDepth(1.0)" in android_depth:
             raise SystemExit("Android GLES branch must not call desktop glClearDepth")
-        stereo_start = first_gl.index("#if defined(__ANDROID__)\\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:")
+        stereo_start = first_gl.index("#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:")
         stereo_end = first_gl.index("#else", stereo_start)
         android_gl = first_gl[stereo_start:stereo_end]
         if "glGetTexImage(" in android_gl:
