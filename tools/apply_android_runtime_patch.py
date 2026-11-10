@@ -62,7 +62,7 @@ ANDROID_ENTRY = """int main(int argc, char** argv) {
 #endif"""
 
 DMA_TIMESPEC_START = "struct timespec ts; timespec_get(&ts, TIME_UTC);   /* C11; diagnostics only */"
-ANDROID_DMA_CLOCK = """/* APE_ANDROID_DMA_CLOCK_MONOTONIC: Bionic API 23 lacks timespec_get. */
+ANDROID_DMA_CLOCK = """/* APE_ANDROID_DMA_CLOCK_MONOTONIC: use an API-23-compatible clock. */
     struct timespec ts;
     (void)clock_gettime(CLOCK_MONOTONIC, &ts); /* Android API 21+ */"""
 
