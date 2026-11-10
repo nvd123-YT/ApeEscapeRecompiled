@@ -37,7 +37,7 @@
 enum {
     SPIKE_BYTES = 0x14Cu,
     PAD_BYTES = 0x1C0u,
-    CAMERA_BYTES = 0x42u,
+    CAMERA_BYTES = 0x47u,
     HUD_BYTES = 0x24u,
     GADGET_BYTES = 0x80u,
     GADGET_AUX_BYTES = 0x1Cu,
