@@ -8,7 +8,7 @@ This branch adds an **opt-in, first-stage two-Spike preview** to the Ape Escape 
 - Re-enters the game's native `Spike_Update` path with that context projected into the original player globals.
 - Places Spike 2 at a small world-X offset from Spike 1.
 - Runs the second body only during the ordinary active-level mode. The first Spike remains the camera target and receives its stock update afterward.
-- Reuses Player 1's processed left-stick vector and jump buttons so the second body can exercise the native movement, animation, floor and draw path.
+- Reuses Player 1's processed left-stick vector and passes only a limited button mask (`0x0A`) to the second body. The exact action mapping still needs an in-game test.
 - Keeps Spike 2 on the default club and suppresses its `Collision_Set` registrations. That avoids registering second-player hitboxes against the single global `g_Spike` pointer.
 
 ## Known limitations
