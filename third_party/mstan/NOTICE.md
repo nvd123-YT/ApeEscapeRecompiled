@@ -5,6 +5,7 @@ adapted from the public **mstan/ApeEscapeRecomp v0.5.7** project
 (commit `2f98ccab5fe510cedd924beebd773e5e2458d16d`):
 
 - `src/mods/ape_presentation_capture.cpp`
+- `src/mods/ape_presentation_sample.inc` (captured presentation sample data)
 - `tests/test_presentation_capture.cpp`
 - `docs/PRESENTATION_CAPTURE.md` (technical documentation)
 
