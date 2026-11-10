@@ -52,7 +52,8 @@ int main(int argc, char **argv) {
   const fs::path development_frame_smoothing =
       development / "packages/ape.enhancement.frame-smoothing";
   if (fs::exists(development_frame_smoothing))
-    return fail("legacy frame interpolation must be archived, not scanned as a development mod");
+    return fail("legacy frame interpolation must be archived, not scanned as "
+                "a development mod");
 
   size_t manifest_count = 0;
   for (const fs::directory_entry &entry :
@@ -116,31 +117,37 @@ int main(int argc, char **argv) {
   if (!default_plan.ok || !default_plan.writes.empty() ||
       default_plan.plugins.size() != 1 ||
       default_plan.plugins.front().id != "ape.fix.prop-visibility") {
-    return fail("fresh profiles should enable only the hidden prop-visibility correction");
+    return fail("fresh profiles should enable only the hidden prop-visibility "
+                "correction");
   }
 
   // Geometry Interpolation is visible, opt-in, and uses the new native capture
   // plugin. Disabling it must leave the unrelated prop-visibility fix intact.
-  if (!manager.set_feature_enabled("ape.enhancement.geometry-interpolation",
-                                   "geometry-interpolation", true, &error)) {
+  if (!manager.set_feature_enabled(
+          "ape.enhancement.geometry-interpolation",
+          "geometry-interpolation", true, &error)) {
     return fail(error);
   }
   const auto geometry_plan = manager.resolve(kGameId, "", kDiscSha256);
   if (!geometry_plan.ok || !geometry_plan.writes.empty() ||
-      std::none_of(geometry_plan.plugins.begin(), geometry_plan.plugins.end(),
-                   [](const auto &plugin) {
-                     return plugin.id == "ape.presentation.capture";
-                   })) {
-    return fail("enabled geometry interpolation did not select the presentation capture plugin");
+      std::none_of(
+          geometry_plan.plugins.begin(), geometry_plan.plugins.end(),
+          [](const auto &plugin) {
+            return plugin.id == "ape.presentation.capture";
+          })) {
+    return fail("enabled geometry interpolation did not select the "
+                "presentation capture plugin");
   }
-  if (!manager.set_feature_enabled("ape.enhancement.geometry-interpolation",
-                                   "geometry-interpolation", false, &error)) {
+  if (!manager.set_feature_enabled(
+          "ape.enhancement.geometry-interpolation",
+          "geometry-interpolation", false, &error)) {
     return fail(error);
   }
   const auto geometry_off_plan = manager.resolve(kGameId, "", kDiscSha256);
   if (!geometry_off_plan.ok || geometry_off_plan.plugins.size() != 1 ||
       geometry_off_plan.plugins.front().id != "ape.fix.prop-visibility") {
-    return fail("geometry interpolation did not return to its default-off state");
+    return fail("geometry interpolation did not return to its default-off "
+                "state");
   }
 
   // Every Quality-of-Life feature resolves independently and is default-off.
@@ -402,6 +409,7 @@ int main(int argc, char **argv) {
   }
 
   fs::remove_all(root, ec);
-  std::cout << "Ape Escape catalog: 12 title-owned packages; geometry interpolation remains opt-in.\n";
+  std::cout << "Ape Escape catalog: 12 title-owned packages; "
+               "geometry interpolation remains opt-in.\n";
   return 0;
 }
