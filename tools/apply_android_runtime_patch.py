@@ -109,6 +109,26 @@ static void stereo_dump(const StereoPair *p) { (void)p; s_stereo_dump_left = 0; 
 """ + GL_DUMP_START + """
 #endif"""
 
+DMA_CLOCK_START = "    struct timespec ts; timespec_get(&ts, TIME_UTC);   /* C11; diagnostics only */"
+ANDROID_DMA_CLOCK = """    struct timespec ts;
+#if defined(__ANDROID__)
+    /* APE_ANDROID_DMA_CLOCK: the Android C99 build uses POSIX clock_gettime. */
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
+        ts.tv_sec = 0;
+        ts.tv_nsec = 0;
+    }
+#else
+    timespec_get(&ts, TIME_UTC); /* C11; diagnostics only */
+#endif"""
+
+def patch_dma_host_clock(text: str) -> str:
+    if "APE_ANDROID_DMA_CLOCK" in text:
+        return text
+    if text.count(DMA_CLOCK_START) != 1:
+        raise ValueError("Expected one known C11 DMA diagnostic clock call; refusing an unsafe Android clock patch.")
+    return text.replace(DMA_CLOCK_START, ANDROID_DMA_CLOCK, 1)
+
+
 def patch_runtime_cmake(text: str) -> str:
     if "# APE_ANDROID_SHARED_RUNTIME" not in text:
         if text.count(RUNTIME_START) != 1:
@@ -174,13 +194,16 @@ def apply(framework_root: Path) -> None:
     main_cpp = framework_root / "runtime" / "src" / "main.cpp"
     gl_renderer = framework_root / "runtime" / "src" / "gpu_gl_renderer.c"
     fiber_file = framework_root / "runtime" / "src" / "psx_fiber.c"
-    if not runtime_cmake.is_file() or not main_cpp.is_file() or not gl_renderer.is_file() or not fiber_file.is_file():
+    dma_file = framework_root / "runtime" / "src" / "dma.c"
+    if not runtime_cmake.is_file() or not main_cpp.is_file() or not gl_renderer.is_file() or not fiber_file.is_file() or not dma_file.is_file():
         raise FileNotFoundError(f"{framework_root} is not the expected PSXRecomp framework checkout")
     cmake_text = runtime_cmake.read_text(encoding="utf-8-sig")
     main_text = main_cpp.read_text(encoding="utf-8-sig")
     gl_text = gl_renderer.read_text(encoding="utf-8-sig")
     fiber_text = fiber_file.read_text(encoding="utf-8-sig")
+    dma_text = dma_file.read_text(encoding="utf-8-sig")
     runtime_cmake.write_text(patch_runtime_cmake(cmake_text), encoding="utf-8")
+    dma_file.write_text(patch_dma_host_clock(dma_text), encoding="utf-8")
     patched_main = patch_main_cpp(main_text)
     patched_main = patch_android_renderer_fallback(patched_main)
     main_cpp.write_text(patched_main, encoding="utf-8")

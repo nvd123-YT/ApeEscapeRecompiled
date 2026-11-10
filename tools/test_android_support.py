@@ -21,6 +21,7 @@ def check_patch_is_idempotent() -> None:
         main = framework / "runtime" / "src" / "main.cpp"
         gl_renderer = framework / "runtime" / "src" / "gpu_gl_renderer.c"
         fiber_file = framework / "runtime" / "src" / "psx_fiber.c"
+        dma_file = framework / "runtime" / "src" / "dma.c"
         cmake.write_text(PATCH.RUNTIME_START + "\n" + PATCH.SDL_STATIC_START + "\n" + PATCH.GL_START + "\n", encoding="utf-8")
         main.write_text(
             '#include "psx_sdl.h"\nint main(int argc, char** argv) {\n' +
@@ -34,6 +35,7 @@ def check_patch_is_idempotent() -> None:
         first_main = main.read_text(encoding="utf-8")
         first_gl = gl_renderer.read_text(encoding="utf-8")
         first_fiber = fiber_file.read_text(encoding="utf-8")
+        first_dma = dma_file.read_text(encoding="utf-8")
         PATCH.apply(framework)
         if cmake.read_text(encoding="utf-8") != first_cmake:
             raise SystemExit("runtime CMake Android patch is not idempotent")
@@ -43,6 +45,8 @@ def check_patch_is_idempotent() -> None:
             raise SystemExit("GPU GL renderer Android patch is not idempotent")
         if fiber_file.read_text(encoding="utf-8") != first_fiber:
             raise SystemExit("Android AArch64 fiber patch is not idempotent")
+        if dma_file.read_text(encoding="utf-8") != first_dma:
+            raise SystemExit("Android DMA clock patch is not idempotent")
         if "APE_ANDROID_AARCH64_FIBERS" not in first_fiber:
             raise SystemExit("Android AArch64 fibers are not implemented")
         if "psx_fiber_android_switch" not in first_fiber or "getcontext(" in first_fiber.split("#else /* POSIX: ucontext */", 1)[0]:
@@ -54,6 +58,11 @@ def check_patch_is_idempotent() -> None:
             raise SystemExit("Android GLES branch must not call desktop glGetTexImage")
         if "s_stereo_dump_left = 0;" not in android_gl:
             raise SystemExit("Android stereo diagnostics must stop the pending dump loop")
+        android_dma = first_dma.split("#else", 1)[0]
+        if "clock_gettime(CLOCK_REALTIME, &ts)" not in android_dma:
+            raise SystemExit("Android DMA diagnostics must use the POSIX realtime clock")
+        if "timespec_get(" in android_dma:
+            raise SystemExit("Android DMA diagnostics must not call C11 timespec_get")
         if "add_library(${target} SHARED" not in first_cmake:
             raise SystemExit("Android runtime target is not a shared library")
         if 'OUTPUT_NAME "ApeEscapeRecomp"' not in first_cmake:

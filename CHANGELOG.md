@@ -15,7 +15,7 @@ All notable changes to Ape Escape Recompiled — Enhanced Edition are recorded h
 
 ### Fixed
 - Include the upstream Geometry Interpolation license, permissions and attribution in Windows, macOS and AppImage packages.
-- Disable desktop-only stereo texture readback diagnostics in the Android GLES runtime and clear the pending diagnostic counter.
+- Disable desktop-only stereo texture readback diagnostics in Android GLES and use POSIX clock_gettime for C99-compatible DMA timing diagnostics.
 - Corrected the Android workflow's private-assets repository guard to match the configured repository identifier.
 - Pinned PSXRecomp to `1b84d4f` (`release/ape-v0.5.7`), retaining the optimized runtime and PGXP depth-buffer/seam-expansion renderer while adding the geometry-presentation APIs. Precise culling remains confined to the default-off PGXP mod.
 - Configured the high-coverage PGXP hook build for dataflow-only vertex precision and exact GTE projection (`pgxp_position_fallback = false`, `pgxp_preserve_projection = true`, `pgxp_tolerance = -1.0`) behind the single default-off PGXP mod switch. This is a source-level correction; live visual confirmation of wobble, seams, and texture warping is still outstanding.
