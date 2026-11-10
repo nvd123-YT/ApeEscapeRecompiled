@@ -14,7 +14,7 @@ disc_sha256 = "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
 [[feature]]
 id = "two-spike-preview"
 name = "Two Spike Preview"
-description = "Spawn a second Spike beside the first in normal level gameplay. Both follow Player 1's left-stick movement and jump; Player 2 cannot use gadgets or collide with enemies/objects in this first test."
+description = "Spawn a second Spike beside the first in normal level gameplay. It follows Player 1's processed left-stick movement and a limited shared button mask; independent controls, gadgets and enemy/object collision are not implemented."
 group = "Experimental Gameplay"
 default_enabled = false
 
