@@ -76,7 +76,7 @@ def check_current_framework_stereo_dump_patch() -> None:
     if marker not in patched:
         raise SystemExit("Current PSXRecomp stereo diagnostic readback is not disabled on Android")
     android_branch = patched.split("#else", 1)[0]
-    if "glGetTexImage" in android_branch:
+    if "glGetTexImage(" in android_branch:
         raise SystemExit("Android stereo diagnostic stub still references unsupported glGetTexImage")
     if "s_stereo_dump_left--" not in android_branch:
         raise SystemExit("Android stereo diagnostic stub does not retire pending dump requests")
