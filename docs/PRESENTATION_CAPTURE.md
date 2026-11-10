@@ -112,3 +112,6 @@ reached first-level gameplay and exercised these projection paths and packet
 transport without tuple rejection, invalid lists, overflow or failed token
 tagging. Partial and untracked polygons remain explicit. This does not establish
 full-game coverage, interpolation quality, cadence or latency.
+
+
+The implementation is split between `src/mods/ape_presentation_capture.cpp` and `src/mods/ape_presentation_sample.inc`. The included helper contains the geometry-sample pairing, camera reconstruction and pose interpolation logic used by the presenter.
