@@ -30,6 +30,7 @@ def check_patch_is_idempotent() -> None:
         )
         gl_renderer.write_text(PATCH.GL_DUMP_START + "\n", encoding="utf-8")
         fiber_file.write_text('#include "psx_fiber.h"\n#else /* POSIX: ucontext */\n#endif /* _WIN32 */\n', encoding="utf-8")
+        dma_file.write_text('#include <time.h>\nstatic unsigned long long hold_host_ticks(void) {\n    struct timespec ts; timespec_get(&ts, TIME_UTC);   /* C11; diagnostics only */\n    return (unsigned long long)ts.tv_sec * 1000000000ull + (unsigned long long)ts.tv_nsec;\n}\n', encoding="utf-8")
         PATCH.apply(framework)
         first_cmake = cmake.read_text(encoding="utf-8")
         first_main = main.read_text(encoding="utf-8")
