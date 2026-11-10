@@ -462,6 +462,6 @@ int main(int argc, char **argv) {
 
   fs::remove_all(root, ec);
   std::cout << "Ape Escape catalog: 11 release packages + 1 development-only "
-               "interpolation package; gameplay features remain opt-in.\\n";
+               "interpolation package; gameplay features remain opt-in.\n";
   return 0;
 }
