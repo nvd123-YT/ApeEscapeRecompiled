@@ -224,9 +224,8 @@ static void initialize_second_spike(uint16_t stage, uint16_t area) {
     uint32_t joint_count;
     uint32_t matrix_bytes;
 
+    g_p2_initialized = 0;
     copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
-    psx_mod_write_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
-                       g_p2_model_matrices);
     copy_guest_words(g_p2_pad, PAD_ADDRESS, PAD_BYTES);
     copy_guest_words(g_p2_gadget, GADGET_ADDRESS, GADGET_BYTES);
     copy_guest_words(g_p2_gadget_aux, GADGET_AUX_ADDRESS, GADGET_AUX_BYTES);
@@ -270,6 +269,7 @@ static void initialize_second_spike(uint16_t stage, uint16_t area) {
     copy_guest_words(g_p2_model_matrices, p1_model_matrices, matrix_bytes);
     psx_mod_write_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
                        g_p2_model_matrices);
+    psx_mod_counter_add("ape.coop.two-spikes.model_matrices_cloned", 1u);
 
     /* Start P2 beside P1 once; do not overwrite its position/action each frame. */
     psx_mod_write_word(g_p2_spike + 0x24u,
@@ -659,6 +659,8 @@ static void second_spike_update_impl(struct CPUState *cpu, uint32_t address) {
 
     /* Persist the independent P2 state, including gadget animation/effects. */
     copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
+    psx_mod_write_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
+                       g_p2_model_matrices);
     copy_guest_words(g_p2_pad, PAD_ADDRESS, PAD_BYTES);
     copy_guest_words(g_p2_gadget, GADGET_ADDRESS, GADGET_BYTES);
     copy_guest_words(g_p2_gadget_aux, GADGET_AUX_ADDRESS, GADGET_AUX_BYTES);
