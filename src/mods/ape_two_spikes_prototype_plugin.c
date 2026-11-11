@@ -59,11 +59,6 @@ enum {
     PAD_DIRL_OFFSET = 0x194u,
     PAD_DIRR_OFFSET = 0x19Cu,
 
-    SPIKE_MODEL_MATRIX_POINTER_OFFSET = 0x14u,
-    SPIKE_MODEL_JOINT_COUNT_OFFSET = 0x04u,
-    MAX_SPIKE_MODEL_JOINTS = 64u,
-    P2_MODEL_MATRIX_CAPACITY_BYTES = 0x820u, /* 65 x 0x20-byte matrices. */
-    P2_MODEL_MATRIX_ALIGNMENT_SLACK = 15u,
     SPIKE_IDLE_TIMER_OFFSET = 0x148u,
 
     GAMEPLAY_PHASE = 3u,
@@ -75,18 +70,13 @@ enum {
 };
 
 #define WORD_COUNT(bytes) ((bytes) / 4u)
-
-static const uint32_t P2_STORAGE_BYTES =
-    SPIKE_BYTES + PAD_BYTES + GADGET_BYTES + GADGET_AUX_BYTES +
-    P2_MODEL_MATRIX_ALIGNMENT_SLACK + P2_MODEL_MATRIX_CAPACITY_BYTES;
+#define P2_STORAGE_BYTES (SPIKE_BYTES + PAD_BYTES + GADGET_BYTES + GADGET_AUX_BYTES)
 
 static uint32_t g_p2_storage;
 static uint32_t g_p2_spike;
 static uint32_t g_p2_pad;
 static uint32_t g_p2_gadget;
 static uint32_t g_p2_gadget_aux;
-/* Spike's model matrix pointer (+0x14) must not alias P1's mutable bone matrices. */
-static uint32_t g_p2_model_matrices;
 static uint16_t g_p2_stage;
 static uint16_t g_p2_area;
 static int g_p2_initialized;
@@ -156,7 +146,6 @@ static void reset_host_state(void) {
     g_p2_pad = 0u;
     g_p2_gadget = 0u;
     g_p2_gadget_aux = 0u;
-    g_p2_model_matrices = 0u;
     g_p2_stage = 0u;
     g_p2_area = 0u;
     g_p2_initialized = 0;
@@ -190,7 +179,6 @@ static void activate_two_spikes(void) {
     g_p2_pad = g_p2_spike + SPIKE_BYTES;
     g_p2_gadget = g_p2_pad + PAD_BYTES;
     g_p2_gadget_aux = g_p2_gadget + GADGET_BYTES;
-    g_p2_model_matrices = (g_p2_gadget_aux + GADGET_AUX_BYTES + 15u) & ~15u;
     psx_mod_counter_add("ape.coop.two-spikes.activated", 1u);
 }
 
@@ -223,44 +211,10 @@ static void clear_second_pad_input(void) {
 }
 
 static void initialize_second_spike(uint16_t stage, uint16_t area) {
-    uint32_t model_header;
-    uint32_t p1_model_matrices;
-    uint32_t joint_count;
-    uint32_t matrix_bytes;
-
-    g_p2_initialized = 0;
     copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
     copy_guest_words(g_p2_pad, PAD_ADDRESS, PAD_BYTES);
     copy_guest_words(g_p2_gadget, GADGET_ADDRESS, GADGET_BYTES);
     copy_guest_words(g_p2_gadget_aux, GADGET_AUX_ADDRESS, GADGET_AUX_BYTES);
-
-    /*
-     * g_Spike is also a model object. Its +0x14 field points to n+1 mutable
-     * bone matrices (root plus n joints). Sharing that pointer makes the two
-     * Spike updates overwrite the same pose; the second instance then renders
-     * with a pose that no longer belongs to it. Give P2 its own matrix array,
-     * while keeping the immutable model header/joints/animation data shared.
-     */
-    model_header = psx_mod_read_word(SPIKE_ADDRESS);
-    p1_model_matrices =
-        psx_mod_read_word(SPIKE_ADDRESS + SPIKE_MODEL_MATRIX_POINTER_OFFSET);
-    if (model_header == 0u || p1_model_matrices == 0u) {
-        psx_mod_counter_add("ape.coop.two-spikes.model_pointer_invalid", 1u);
-        return;
-    }
-
-    joint_count =
-        psx_mod_read_half(model_header + SPIKE_MODEL_JOINT_COUNT_OFFSET);
-    if (joint_count == 0u || joint_count > MAX_SPIKE_MODEL_JOINTS) {
-        psx_mod_counter_add("ape.coop.two-spikes.model_joint_count_invalid", 1u);
-        return;
-    }
-
-    matrix_bytes = (joint_count + 1u) * MATRIX_BYTES;
-    copy_guest_words(g_p2_model_matrices, p1_model_matrices, matrix_bytes);
-    psx_mod_write_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
-                       g_p2_model_matrices);
-    psx_mod_counter_add("ape.coop.two-spikes.model_matrices_cloned", 1u);
 
     /* Start P2 beside P1 once; do not overwrite its position/action each frame. */
     psx_mod_write_word(g_p2_spike + 0x24u,
@@ -633,9 +587,6 @@ static void second_spike_update_impl(struct CPUState *cpu, uint32_t address) {
     /* Project P2's persistent player, pad, and gadget contexts into the
        game's single-player globals for one native update. */
     copy_guest_words(SPIKE_ADDRESS, g_p2_spike, SPIKE_BYTES);
-    /* Reassert P2's private mutable bone-matrix array after the struct copy. */
-    psx_mod_write_word(SPIKE_ADDRESS + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
-                       g_p2_model_matrices);
     copy_guest_words(PAD_ADDRESS, g_p2_pad, PAD_BYTES);
     copy_guest_words(GADGET_ADDRESS, g_p2_gadget, GADGET_BYTES);
     copy_guest_words(GADGET_AUX_ADDRESS, g_p2_gadget_aux, GADGET_AUX_BYTES);
@@ -650,8 +601,6 @@ static void second_spike_update_impl(struct CPUState *cpu, uint32_t address) {
 
     /* Persist the independent P2 state, including gadget animation/effects. */
     copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
-    psx_mod_write_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
-                       g_p2_model_matrices);
     copy_guest_words(g_p2_pad, PAD_ADDRESS, PAD_BYTES);
     copy_guest_words(g_p2_gadget, GADGET_ADDRESS, GADGET_BYTES);
     copy_guest_words(g_p2_gadget_aux, GADGET_AUX_ADDRESS, GADGET_AUX_BYTES);
