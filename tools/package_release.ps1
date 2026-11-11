@@ -354,7 +354,7 @@ $systemDlls = @("kernel32.dll","user32.dll","gdi32.dll","shell32.dll","msvcrt.dl
                 "oleaut32.dll","winmm.dll","imm32.dll","version.dll","setupapi.dll",
                 "dinput8.dll","rpcrt4.dll","hid.dll","cfgmgr32.dll","opengl32.dll",
                 "ntdll.dll","bcrypt.dll","dwmapi.dll","shlwapi.dll","ucrtbase.dll",
-                "d2d1.dll","dwrite.dll")
+                "d2d1.dll","dwrite.dll","iphlpapi.dll")
 $nonSystem = $imports | Where-Object {
     $systemDlls -notcontains $_.ToLower() -and $_ -notmatch '^api-ms-win-crt-[a-z0-9-]+\.dll$'
 }
