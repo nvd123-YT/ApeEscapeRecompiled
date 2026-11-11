@@ -29,6 +29,9 @@
 #define HUD_ADDRESS UINT32_C(0x800F4DB0)
 #define GADGET_ADDRESS UINT32_C(0x800F5120)
 #define GADGET_AUX_ADDRESS UINT32_C(0x800F51D0)
+#define CURRENT_GADGET_ADDRESS UINT32_C(0x800EC2D2)
+#define JOINT_WORLD_MATRICES_ADDRESS UINT32_C(0x800F4730)
+#define JOINT_ANGLES_ADDRESS UINT32_C(0x800F4B30)
 
 #define GAME_PHASE_ADDRESS UINT32_C(0x800F447C)
 #define GAME_STAGE_ADDRESS UINT32_C(0x800F4476)
@@ -41,9 +44,17 @@ enum {
     PAD_BYTES = 0x1C0u,
     CAMERA_BYTES = 0x47u,
     MATRIX_BYTES = 0x20u,
+    JOINT_ANGLE_BYTES = 0x08u,
     HUD_BYTES = 0x24u,
     GADGET_BYTES = 0x80u,
     GADGET_AUX_BYTES = 0x1Cu,
+    SPIKE_GADGET_OFFSET = 0xF2u,
+    SPIKE_MODEL_MATRIX_POINTER_OFFSET = 0x14u,
+    SPIKE_MODEL_JOINT_COUNT_OFFSET = 0x04u,
+    MAX_SPIKE_MODEL_JOINTS = 64u,
+    P2_MODEL_MATRIX_CAPACITY_BYTES = 0x820u,
+    P2_MODEL_MATRIX_ALIGNMENT_SLACK = 15u,
+    P2_JOINT_ANGLE_CAPACITY_BYTES = 0x200u,
 
     PAD_HELD_OFFSET = 0x158u,
     PAD_PRESSED_OFFSET = 0x160u,
@@ -70,13 +81,17 @@ enum {
 };
 
 #define WORD_COUNT(bytes) ((bytes) / 4u)
-#define P2_STORAGE_BYTES (SPIKE_BYTES + PAD_BYTES + GADGET_BYTES + GADGET_AUX_BYTES)
+#define P2_STORAGE_BYTES \
+    (SPIKE_BYTES + PAD_BYTES + GADGET_BYTES + GADGET_AUX_BYTES + \
+     P2_MODEL_MATRIX_ALIGNMENT_SLACK + P2_MODEL_MATRIX_CAPACITY_BYTES)
 
 static uint32_t g_p2_storage;
 static uint32_t g_p2_spike;
 static uint32_t g_p2_pad;
 static uint32_t g_p2_gadget;
 static uint32_t g_p2_gadget_aux;
+static uint32_t g_p2_model_matrices;
+static uint32_t g_p2_joint_count;
 static uint16_t g_p2_stage;
 static uint16_t g_p2_area;
 static int g_p2_initialized;
@@ -146,6 +161,8 @@ static void reset_host_state(void) {
     g_p2_pad = 0u;
     g_p2_gadget = 0u;
     g_p2_gadget_aux = 0u;
+    g_p2_model_matrices = 0u;
+    g_p2_joint_count = 0u;
     g_p2_stage = 0u;
     g_p2_area = 0u;
     g_p2_initialized = 0;
@@ -179,6 +196,8 @@ static void activate_two_spikes(void) {
     g_p2_pad = g_p2_spike + SPIKE_BYTES;
     g_p2_gadget = g_p2_pad + PAD_BYTES;
     g_p2_gadget_aux = g_p2_gadget + GADGET_BYTES;
+    g_p2_model_matrices =
+        (g_p2_gadget_aux + GADGET_AUX_BYTES + 15u) & ~UINT32_C(15);
     psx_mod_counter_add("ape.coop.two-spikes.activated", 1u);
 }
 
@@ -211,10 +230,41 @@ static void clear_second_pad_input(void) {
 }
 
 static void initialize_second_spike(uint16_t stage, uint16_t area) {
+    uint32_t model_header;
+    uint32_t p1_model_matrices;
+    uint32_t joint_count;
+    uint32_t matrix_bytes;
+
+    g_p2_initialized = 0;
     copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
     copy_guest_words(g_p2_pad, PAD_ADDRESS, PAD_BYTES);
     copy_guest_words(g_p2_gadget, GADGET_ADDRESS, GADGET_BYTES);
     copy_guest_words(g_p2_gadget_aux, GADGET_AUX_ADDRESS, GADGET_AUX_BYTES);
+
+    /* Spike_Draw uses the matrix array stored in the model object at +0x14.
+       Give P2 a private array so P1's subsequent draw cannot overwrite it. */
+    model_header = psx_mod_read_word(g_p2_spike);
+    p1_model_matrices =
+        psx_mod_read_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET);
+    if (model_header == 0u || p1_model_matrices == 0u) {
+        psx_mod_counter_add("ape.coop.two-spikes.model_pointer_invalid", 1u);
+        return;
+    }
+    joint_count =
+        psx_mod_read_half(model_header + SPIKE_MODEL_JOINT_COUNT_OFFSET);
+    if (joint_count == 0u || joint_count > MAX_SPIKE_MODEL_JOINTS) {
+        psx_mod_counter_add("ape.coop.two-spikes.model_joint_count_invalid", 1u);
+        return;
+    }
+    matrix_bytes = (joint_count + 1u) * MATRIX_BYTES;
+    if (matrix_bytes > P2_MODEL_MATRIX_CAPACITY_BYTES) {
+        psx_mod_counter_add("ape.coop.two-spikes.model_matrix_storage_invalid", 1u);
+        return;
+    }
+    copy_guest_words(g_p2_model_matrices, p1_model_matrices, matrix_bytes);
+    psx_mod_write_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
+                       g_p2_model_matrices);
+    g_p2_joint_count = joint_count;
 
     /* Start P2 beside P1 once; do not overwrite its position/action each frame. */
     psx_mod_write_word(g_p2_spike + 0x24u,
@@ -548,7 +598,12 @@ static void second_spike_update_impl(struct CPUState *cpu, uint32_t address) {
     uint32_t p1_hud[WORD_COUNT(HUD_BYTES)];
     uint32_t p1_gadget[WORD_COUNT(GADGET_BYTES)];
     uint32_t p1_gadget_aux[WORD_COUNT(GADGET_AUX_BYTES)];
+    uint32_t p1_joint_world_matrices[WORD_COUNT(P2_MODEL_MATRIX_CAPACITY_BYTES)];
+    uint32_t p1_joint_angles[WORD_COUNT(P2_JOINT_ANGLE_CAPACITY_BYTES)];
     uint32_t p1_game_mode;
+    uint8_t p1_current_gadget;
+    uint32_t joint_matrix_bytes;
+    uint32_t joint_angle_bytes;
     uint16_t stage;
     uint16_t area;
 
@@ -583,17 +638,27 @@ static void second_spike_update_impl(struct CPUState *cpu, uint32_t address) {
     read_guest_words(GADGET_ADDRESS, p1_gadget, GADGET_BYTES);
     read_guest_words(GADGET_AUX_ADDRESS, p1_gadget_aux, GADGET_AUX_BYTES);
     p1_game_mode = psx_mod_read_word(GAME_PLAY_MODE_ADDRESS);
+    p1_current_gadget = psx_mod_read_byte(CURRENT_GADGET_ADDRESS);
+    joint_matrix_bytes = (g_p2_joint_count + 1u) * MATRIX_BYTES;
+    joint_angle_bytes = g_p2_joint_count * JOINT_ANGLE_BYTES;
+    read_guest_words(JOINT_WORLD_MATRICES_ADDRESS, p1_joint_world_matrices,
+                     joint_matrix_bytes);
+    read_guest_words(JOINT_ANGLES_ADDRESS, p1_joint_angles, joint_angle_bytes);
 
     /* Project P2's persistent player, pad, and gadget contexts into the
        game's single-player globals for one native update. */
     copy_guest_words(SPIKE_ADDRESS, g_p2_spike, SPIKE_BYTES);
+    psx_mod_write_word(SPIKE_ADDRESS + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
+                       g_p2_model_matrices);
     copy_guest_words(PAD_ADDRESS, g_p2_pad, PAD_BYTES);
     copy_guest_words(GADGET_ADDRESS, g_p2_gadget, GADGET_BYTES);
     copy_guest_words(GADGET_AUX_ADDRESS, g_p2_gadget_aux, GADGET_AUX_BYTES);
+    psx_mod_write_byte(CURRENT_GADGET_ADDRESS,
+                       psx_mod_read_byte(g_p2_spike + SPIKE_GADGET_OFFSET));
     prepare_second_pad();
 
-    /* P2 shares the camera target and HUD, but not their mutable camera
-       matrices, gadget state, or animation-event history. */
+    /* P2 shares immutable animation data, but the model matrix and the two
+       global pose-calculation work arrays must be protected from P1. */
     g_in_p2_update = 1;
     (void)psx_mod_call_guest(cpu, SPIKE_UPDATE_ADDRESS, cpu->gpr[31],
                              0u, 0u, 0u, 0u);
@@ -601,10 +666,19 @@ static void second_spike_update_impl(struct CPUState *cpu, uint32_t address) {
 
     /* Persist the independent P2 state, including gadget animation/effects. */
     copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
+    psx_mod_write_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
+                       g_p2_model_matrices);
+    psx_mod_write_byte(g_p2_spike + SPIKE_GADGET_OFFSET,
+                       psx_mod_read_byte(CURRENT_GADGET_ADDRESS));
     copy_guest_words(g_p2_pad, PAD_ADDRESS, PAD_BYTES);
     copy_guest_words(g_p2_gadget, GADGET_ADDRESS, GADGET_BYTES);
     copy_guest_words(g_p2_gadget_aux, GADGET_AUX_ADDRESS, GADGET_AUX_BYTES);
 
+    write_guest_words(JOINT_WORLD_MATRICES_ADDRESS, p1_joint_world_matrices,
+                      joint_matrix_bytes);
+    write_guest_words(JOINT_ANGLES_ADDRESS, p1_joint_angles,
+                      joint_angle_bytes);
+    psx_mod_write_byte(CURRENT_GADGET_ADDRESS, p1_current_gadget);
     write_guest_words(SPIKE_ADDRESS, p1_spike, SPIKE_BYTES);
     write_guest_words(PAD_ADDRESS, p1_pad, PAD_BYTES);
     write_guest_bytes(CAMERA_ADDRESS, p1_camera, CAMERA_BYTES);
