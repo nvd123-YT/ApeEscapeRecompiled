@@ -8,7 +8,7 @@
  *
  * This deliberately is NOT the final local-co-op implementation:
  * - P2 follows P1's processed left-stick movement and a small shared button mask.
- * - P2 is locked to the default club and cannot use gadgets.
+ * - P2 mirrors P1's active gadget selection; its right-stick input is disabled.
  * - P2's object-collision registrations are suppressed; floor/terrain
  *   movement and its own animation/draw path still run.
  * - P1 remains the camera target and retains its normal update.
@@ -147,8 +147,7 @@ static void initialize_second_spike(uint16_t stage, uint16_t area) {
                        psx_mod_read_word(g_p2_spike + 0x24u) +
                            SPAWN_SEPARATION);
 
-    /* The prototype is a movement/animation twin, not a second gadget user. */
-    psx_mod_write_byte(g_p2_spike + SPIKE_GADGET_OFFSET, 0u);
+    /* P2 uses P1's gadget selection so the game's shared gadget selector stays coherent. */
     psx_mod_write_half(g_p2_spike + SPIKE_IDLE_TIMER_OFFSET, 0u);
     psx_mod_write_byte(g_p2_spike + SPIKE_IDLE_TIMER_OFFSET + 2u, 0u);
     psx_mod_write_byte(g_p2_spike + SPIKE_IDLE_TIMER_OFFSET + 3u, 0u);
@@ -212,6 +211,17 @@ static void second_spike_update(struct CPUState *cpu, uint32_t address) {
        only once in the original update that follows this hook. */
     read_guest_words(SPIKE_ADDRESS, p1_spike, SPIKE_BYTES);
     read_guest_words(PAD_ADDRESS, p1_pad, PAD_BYTES);
+
+    /*
+     * This is a follower preview, not an independently simulated player.
+     * Re-seed P2 from P1 every frame so its animation/action state cannot
+     * drift away while both bodies share the game's single gadget selector,
+     * event system, and collision owner. The second body keeps only its own
+     * lateral offset between the two native update calls.
+     */
+    copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
+    psx_mod_write_word(g_p2_spike + 0x24u,
+                       p1_spike[0x24u / 4u] + SPAWN_SEPARATION);
     read_guest_bytes(CAMERA_ADDRESS, p1_camera, CAMERA_BYTES);
     read_guest_words(HUD_ADDRESS, p1_hud, HUD_BYTES);
     read_guest_words(GADGET_ADDRESS, p1_gadget, GADGET_BYTES);
@@ -228,7 +238,6 @@ static void second_spike_update(struct CPUState *cpu, uint32_t address) {
     psx_mod_write_word(SPIKE_ADDRESS + SPIKE_COLLISION_OFFSET, 0u);
     psx_mod_write_word(SPIKE_ADDRESS + SPIKE_EVENTS_OFFSET, 0u);
     psx_mod_write_word(SPIKE_ADDRESS + SPIKE_PREVIOUS_EVENTS_OFFSET, 0u);
-    psx_mod_write_byte(SPIKE_ADDRESS + SPIKE_GADGET_OFFSET, 0u);
     psx_mod_write_half(SPIKE_ADDRESS + SPIKE_IDLE_TIMER_OFFSET, 0u);
     psx_mod_write_byte(SPIKE_ADDRESS + SPIKE_IDLE_TIMER_OFFSET + 2u, 0u);
     psx_mod_write_byte(SPIKE_ADDRESS + SPIKE_IDLE_TIMER_OFFSET + 3u, 0u);
