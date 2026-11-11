@@ -176,6 +176,26 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .button-secondary:hover { border-color: var(--accent); color: var(--accent); }
 .button svg { width: 17px; height: 17px; }
 
+.ad-slot {
+    display: flex;
+    min-height: 90px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    overflow: hidden;
+}
+.ad-label {
+    width: 100%;
+    color: var(--muted-2);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-align: center;
+    text-transform: uppercase;
+}
+.ad-slot #container-11e872791299b828f02d7aa56eff4a5b { max-width: 100%; }
+
 .section { padding: 82px 0; }
 .section-alt { background: var(--bg-soft); border-block: 1px solid rgba(255,255,255,.035); }
 .section-heading { max-width: 720px; margin: 0 auto 38px; text-align: center; }
