@@ -1,21 +1,17 @@
 #include "cpu_state.h"
+#include "mod_netplay.h"
 #include "mod_plugins.h"
+#include "sio.h"
 
 #include <stdint.h>
 
 /*
- * First-stage two-Spike experiment.
+ * Two-Spike local co-op and netplay simulation.
  *
- * This deliberately is NOT the final local-co-op implementation:
- * - P2 follows P1's processed left-stick movement and a small shared button mask.
- * - P2 mirrors P1's active gadget selection; its right-stick input is disabled.
- * - P2's object-collision registrations are suppressed; floor/terrain
- *   movement and its own animation/draw path still run.
- * - P1 remains the camera target and retains its normal update.
- *
- * The game has one global g_Spike and one global g_Pad. We preserve the
- * second character in Expansion 1 and temporarily project that context into
- * the native globals while re-entering Spike_Update. The feature is opt-in.
+ * P2 has its own saved Spike, Pad, and gadget state in Expansion 1. Its input
+ * is sampled from logical SIO pad 1; in online play the framework supplies
+ * the resolved second seat through that same SIO slot. P1 remains the camera
+ * target and owns the shared HUD.
  */
 
 #define SPIKE_UPDATE_ADDRESS UINT32_C(0x80060780)
@@ -24,6 +20,8 @@
 #define SPIKE_ADDRESS UINT32_C(0x800EC1E0)
 #define PAD_ADDRESS UINT32_C(0x800E5320)
 #define CAMERA_ADDRESS UINT32_C(0x800E68D0)
+#define VIEW_MATRIX_ADDRESS UINT32_C(0x800E78C0)
+#define CAMERA_YAW_MATRIX_ADDRESS UINT32_C(0x800EBFD0)
 #define HUD_ADDRESS UINT32_C(0x800F4DB0)
 #define GADGET_ADDRESS UINT32_C(0x800F5120)
 #define GADGET_AUX_ADDRESS UINT32_C(0x800F51D0)
@@ -38,39 +36,68 @@ enum {
     SPIKE_BYTES = 0x14Cu,
     PAD_BYTES = 0x1C0u,
     CAMERA_BYTES = 0x47u,
+    MATRIX_BYTES = 0x20u,
     HUD_BYTES = 0x24u,
     GADGET_BYTES = 0x80u,
     GADGET_AUX_BYTES = 0x1Cu,
 
-    PAD_INPUT_OFFSET = 0x158u,
     PAD_HELD_OFFSET = 0x158u,
     PAD_PRESSED_OFFSET = 0x160u,
+    PAD_RAW_STICK_X_OFFSET = 0x0A2u,
+    PAD_RAW_STICK_Y_OFFSET = 0x0A3u,
+    PAD_HISTORY_OFFSET = 0x0A4u,
+    PAD_HISTORY_INDEX_OFFSET = 0x170u,
+    PAD_HISTORY_COUNT = 40u,
+    PAD_LEFT_STICK_OFFSET = 0x178u,
     PAD_RIGHT_STICK_OFFSET = 0x17Au,
-    PAD_RIGHT_MAGNITUDE_OFFSET = 0x182u,
-    PAD_RIGHT_DIRECTION_OFFSET = 0x19Cu,
+    PAD_MAGL_OFFSET = 0x180u,
+    PAD_MAGR_OFFSET = 0x182u,
+    PAD_DIRL_OFFSET = 0x194u,
+    PAD_DIRR_OFFSET = 0x19Cu,
 
-    SPIKE_COLLISION_OFFSET = 0x50u,
-    SPIKE_EVENTS_OFFSET = 0xE0u,
-    SPIKE_PREVIOUS_EVENTS_OFFSET = 0xE4u,
-    SPIKE_GADGET_OFFSET = 0xF2u,
     SPIKE_IDLE_TIMER_OFFSET = 0x148u,
 
     GAMEPLAY_PHASE = 3u,
     NORMAL_PLAY_MODE = 0u,
     CUTSCENE_SUBMODE = 0x0Bu,
-    P2_SHARED_BUTTON_MASK = 0x0000000Au,
+    STICK_DEADZONE = 21u,
+    STICK_MAX_MAGNITUDE = 127u,
     SPAWN_SEPARATION = 0x00000100u
 };
 
 #define WORD_COUNT(bytes) ((bytes) / 4u)
+#define P2_STORAGE_BYTES (SPIKE_BYTES + PAD_BYTES + GADGET_BYTES + GADGET_AUX_BYTES)
 
 static uint32_t g_p2_storage;
 static uint32_t g_p2_spike;
 static uint32_t g_p2_pad;
+static uint32_t g_p2_gadget;
+static uint32_t g_p2_gadget_aux;
 static uint16_t g_p2_stage;
 static uint16_t g_p2_area;
 static int g_p2_initialized;
 static int g_in_p2_update;
+
+/* The netplay profile is delay-sync only until rollback and state restore have
+ * been verified with the game's separate player/gadget contexts. */
+static const PSXModNetplayProfile g_two_spike_netplay_profile = {
+    .plugin_id = "ape.coop.two-spikes",
+    .compatibility_id = "apeescape-two-spikes-coop-v1",
+    .rollback_supported = 0,
+    .savestates_supported = 0,
+    .skip_bios_intro = 1,
+    .fixed_aspect_mask = 0u,
+    .widescreen_plugin_id = 0,
+    .state_digest = 0,
+    .requires_retained_texture_banks = 0,
+    .settings_package_id = 0,
+    .settings_feature_id = 0,
+    .renderer_option_id = 0,
+    .renderer_option_value = 0,
+    .loading_package_id = 0,
+    .loading_feature_id = 0,
+    .loading_plugin_id = 0
+};
 
 static void read_guest_words(uint32_t address, uint32_t *out, uint32_t bytes) {
     uint32_t offset;
@@ -110,6 +137,8 @@ static void reset_host_state(void) {
     g_p2_storage = 0u;
     g_p2_spike = 0u;
     g_p2_pad = 0u;
+    g_p2_gadget = 0u;
+    g_p2_gadget_aux = 0u;
     g_p2_stage = 0u;
     g_p2_area = 0u;
     g_p2_initialized = 0;
@@ -118,15 +147,16 @@ static void reset_host_state(void) {
 
 static void activate_two_spikes(void) {
     reset_host_state();
-    g_p2_storage =
-        psx_mod_alloc_guest_memory(SPIKE_BYTES + PAD_BYTES, 16u);
+    g_p2_storage = psx_mod_alloc_guest_memory(P2_STORAGE_BYTES, 16u);
     if (g_p2_storage == 0u) {
         psx_mod_counter_add("ape.coop.two-spikes.allocation_failed", 1u);
         return;
     }
 
     g_p2_spike = g_p2_storage;
-    g_p2_pad = g_p2_storage + SPIKE_BYTES;
+    g_p2_pad = g_p2_spike + SPIKE_BYTES;
+    g_p2_gadget = g_p2_pad + PAD_BYTES;
+    g_p2_gadget_aux = g_p2_gadget + GADGET_BYTES;
     psx_mod_counter_add("ape.coop.two-spikes.activated", 1u);
 }
 
@@ -137,17 +167,41 @@ static int normal_level_frame(void) {
            psx_mod_read_half(GAME_PLAY_SUBMODE_ADDRESS) != CUTSCENE_SUBMODE;
 }
 
+static void clear_second_pad_input(void) {
+    uint32_t i;
+
+    psx_mod_write_word(g_p2_pad + PAD_HELD_OFFSET, 0u);
+    psx_mod_write_word(g_p2_pad + PAD_PRESSED_OFFSET, 0u);
+    psx_mod_write_byte(g_p2_pad + PAD_RAW_STICK_X_OFFSET, 0u);
+    psx_mod_write_byte(g_p2_pad + PAD_RAW_STICK_Y_OFFSET, 0u);
+    psx_mod_write_half(g_p2_pad + PAD_LEFT_STICK_OFFSET, 0u);
+    psx_mod_write_half(g_p2_pad + PAD_RIGHT_STICK_OFFSET, 0u);
+    psx_mod_write_half(g_p2_pad + PAD_MAGL_OFFSET, 0u);
+    psx_mod_write_half(g_p2_pad + PAD_MAGR_OFFSET, 0u);
+    psx_mod_write_word(g_p2_pad + PAD_DIRL_OFFSET, 0u);
+    psx_mod_write_word(g_p2_pad + PAD_DIRL_OFFSET + 4u, 0u);
+    psx_mod_write_word(g_p2_pad + PAD_DIRR_OFFSET, 0u);
+    psx_mod_write_word(g_p2_pad + PAD_DIRR_OFFSET + 4u, 0u);
+    psx_mod_write_word(g_p2_pad + PAD_HISTORY_INDEX_OFFSET, 0u);
+
+    for (i = 0u; i < PAD_HISTORY_COUNT; ++i)
+        psx_mod_write_word(g_p2_pad + PAD_HISTORY_OFFSET + i * 4u, 0u);
+}
+
 static void initialize_second_spike(uint16_t stage, uint16_t area) {
     copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
     copy_guest_words(g_p2_pad, PAD_ADDRESS, PAD_BYTES);
+    copy_guest_words(g_p2_gadget, GADGET_ADDRESS, GADGET_BYTES);
+    copy_guest_words(g_p2_gadget_aux, GADGET_AUX_ADDRESS, GADGET_AUX_BYTES);
 
-    /* Keep the second model visibly beside Spike 1. World-space X is used
-       rather than changing the camera or introducing a second viewport. */
+    /* Start P2 beside P1 once; do not overwrite its position/action each frame. */
     psx_mod_write_word(g_p2_spike + 0x24u,
                        psx_mod_read_word(g_p2_spike + 0x24u) +
                            SPAWN_SEPARATION);
+    clear_second_pad_input();
 
-    /* P2 uses P1's gadget selection so the game's shared gadget selector stays coherent. */
+    /* The CD-backed idle-only animation loader is still shared by the game.
+       Keep that one path off until it can have its own resource context. */
     psx_mod_write_half(g_p2_spike + SPIKE_IDLE_TIMER_OFFSET, 0u);
     psx_mod_write_byte(g_p2_spike + SPIKE_IDLE_TIMER_OFFSET + 2u, 0u);
     psx_mod_write_byte(g_p2_spike + SPIKE_IDLE_TIMER_OFFSET + 3u, 0u);
@@ -158,32 +212,152 @@ static void initialize_second_spike(uint16_t stage, uint16_t area) {
     psx_mod_counter_add("ape.coop.two-spikes.spawned", 1u);
 }
 
-static void prepare_second_pad(const uint32_t *p1_pad) {
-    const uint32_t held =
-        p1_pad[PAD_HELD_OFFSET / 4u] & P2_SHARED_BUTTON_MASK;
-    const uint32_t pressed =
-        p1_pad[PAD_PRESSED_OFFSET / 4u] & P2_SHARED_BUTTON_MASK;
+static uint32_t integer_sqrt(uint32_t value) {
+    uint32_t result = 0u;
+    uint32_t bit = UINT32_C(1) << 30;
 
-    /* Keep P2's own history ring, but supply this frame's processed stick
-       state from P1. That reuses Ape's camera-relative movement calculation. */
-    write_guest_words(PAD_ADDRESS + PAD_INPUT_OFFSET,
-                      p1_pad + (PAD_INPUT_OFFSET / 4u),
-                      PAD_BYTES - PAD_INPUT_OFFSET);
+    while (bit > value)
+        bit >>= 2;
 
-    psx_mod_write_word(PAD_ADDRESS + PAD_HELD_OFFSET, held);
-    psx_mod_write_word(PAD_ADDRESS + PAD_PRESSED_OFFSET, pressed);
+    while (bit != 0u) {
+        if (value >= result + bit) {
+            value -= result + bit;
+            result = (result >> 1) + bit;
+        } else {
+            result >>= 1;
+        }
+        bit >>= 2;
+    }
+    return result;
+}
 
-    /* Do not let P1's right-stick gadget aiming leak into the P2 body. */
-    psx_mod_write_half(PAD_ADDRESS + PAD_RIGHT_STICK_OFFSET, 0x8080u);
-    psx_mod_write_half(PAD_ADDRESS + PAD_RIGHT_MAGNITUDE_OFFSET, 0u);
-    psx_mod_write_word(PAD_ADDRESS + PAD_RIGHT_DIRECTION_OFFSET, 0u);
-    psx_mod_write_word(PAD_ADDRESS + PAD_RIGHT_DIRECTION_OFFSET + 4u, 0u);
+static uint16_t pack_stick_axes(int8_t x, int8_t y) {
+    return (uint16_t)(uint8_t)x |
+           (uint16_t)((uint16_t)(uint8_t)y << 8);
+}
+
+static uint16_t write_stick_direction(int8_t stick_x, int8_t stick_y,
+                                      uint32_t direction_address) {
+    int32_t x = stick_x;
+    int32_t y = -(int32_t)stick_y;
+    uint32_t magnitude = integer_sqrt((uint32_t)(x * x + y * y));
+    int32_t m00;
+    int32_t m02;
+    int32_t m20;
+    int32_t m22;
+    int32_t world_x;
+    int32_t world_z;
+    uint32_t world_magnitude;
+    int16_t direction_x;
+    int16_t direction_z;
+
+    if (magnitude <= STICK_DEADZONE) {
+        psx_mod_write_half(direction_address, 0u);
+        psx_mod_write_half(direction_address + 2u, 0u);
+        psx_mod_write_half(direction_address + 4u, 0u);
+        psx_mod_write_half(direction_address + 6u, 0u);
+        return 0u;
+    }
+
+    if (magnitude > STICK_MAX_MAGNITUDE)
+        magnitude = STICK_MAX_MAGNITUDE;
+
+    /* g_ViewMatrix is the live camera transform. Its transpose maps the
+       player's camera-relative stick vector into the shared world plane. */
+    m00 = (int16_t)psx_mod_read_half(VIEW_MATRIX_ADDRESS);
+    m02 = (int16_t)psx_mod_read_half(VIEW_MATRIX_ADDRESS + 4u);
+    m20 = (int16_t)psx_mod_read_half(VIEW_MATRIX_ADDRESS + 12u);
+    m22 = (int16_t)psx_mod_read_half(VIEW_MATRIX_ADDRESS + 16u);
+
+    world_x = (m00 * x + m20 * y) >> 12;
+    world_z = (m02 * x + m22 * y) >> 12;
+    world_magnitude =
+        integer_sqrt((uint32_t)(world_x * world_x + world_z * world_z));
+
+    if (world_magnitude == 0u) {
+        world_x = x;
+        world_z = y;
+        world_magnitude = magnitude;
+    }
+
+    direction_x = (int16_t)((world_x * 4096) / (int32_t)world_magnitude);
+    direction_z = (int16_t)((world_z * 4096) / (int32_t)world_magnitude);
+
+    psx_mod_write_half(direction_address, (uint16_t)direction_x);
+    psx_mod_write_half(direction_address + 2u, 0u);
+    psx_mod_write_half(direction_address + 4u, (uint16_t)direction_z);
+    psx_mod_write_half(direction_address + 6u, 0u);
+
+    return (uint16_t)(((magnitude - STICK_DEADZONE) * STICK_MAX_MAGNITUDE) /
+                      (STICK_MAX_MAGNITUDE - STICK_DEADZONE));
+}
+
+static void update_pad_history(uint32_t newly_pressed) {
+    uint32_t history_index =
+        psx_mod_read_word(PAD_ADDRESS + PAD_HISTORY_INDEX_OFFSET);
+    uint32_t button;
+
+    for (button = 1u; button <= UINT32_C(0x8000); button <<= 1) {
+        if ((newly_pressed & button) != 0u) {
+            uint32_t slot = history_index % PAD_HISTORY_COUNT;
+            psx_mod_write_word(PAD_ADDRESS + PAD_HISTORY_OFFSET + slot * 4u,
+                               button);
+            ++history_index;
+        }
+    }
+    psx_mod_write_word(PAD_ADDRESS + PAD_HISTORY_INDEX_OFFSET, history_index);
+}
+
+static void prepare_second_pad(void) {
+    uint8_t axes[4] = {0x80u, 0x80u, 0x80u, 0x80u};
+    uint16_t active_sio_buttons =
+        (uint16_t)~sio_get_pad_buttons_slot(1);
+    uint16_t game_buttons =
+        (uint16_t)(((active_sio_buttons & 0x00FFu) << 8) |
+                   ((active_sio_buttons & 0xFF00u) >> 8));
+    uint32_t previous_held =
+        psx_mod_read_word(PAD_ADDRESS + PAD_HELD_OFFSET);
+    uint32_t newly_pressed = (uint32_t)game_buttons & ~previous_held;
+    int8_t left_x;
+    int8_t left_y;
+    int8_t right_x;
+    int8_t right_y;
+    uint16_t left_magnitude;
+    uint16_t right_magnitude;
+
+    sio_get_pad_sticks(1, axes);
+    left_x = (int8_t)((int)axes[0] - 128);
+    left_y = (int8_t)((int)axes[1] - 128);
+    right_x = (int8_t)((int)axes[2] - 128);
+    right_y = (int8_t)((int)axes[3] - 128);
+
+    psx_mod_write_word(PAD_ADDRESS + PAD_HELD_OFFSET, game_buttons);
+    psx_mod_write_word(PAD_ADDRESS + PAD_PRESSED_OFFSET, newly_pressed);
+    psx_mod_write_byte(PAD_ADDRESS + PAD_RAW_STICK_X_OFFSET,
+                       (uint8_t)left_x);
+    psx_mod_write_byte(PAD_ADDRESS + PAD_RAW_STICK_Y_OFFSET,
+                       (uint8_t)left_y);
+    psx_mod_write_half(PAD_ADDRESS + PAD_LEFT_STICK_OFFSET,
+                       pack_stick_axes(left_x, left_y));
+    psx_mod_write_half(PAD_ADDRESS + PAD_RIGHT_STICK_OFFSET,
+                       pack_stick_axes(right_x, right_y));
+
+    left_magnitude =
+        write_stick_direction(left_x, left_y, PAD_ADDRESS + PAD_DIRL_OFFSET);
+    right_magnitude =
+        write_stick_direction(right_x, right_y, PAD_ADDRESS + PAD_DIRR_OFFSET);
+    psx_mod_write_half(PAD_ADDRESS + PAD_MAGL_OFFSET, left_magnitude);
+    psx_mod_write_half(PAD_ADDRESS + PAD_MAGR_OFFSET, right_magnitude);
+
+    update_pad_history(newly_pressed);
 }
 
 static void second_spike_update(struct CPUState *cpu, uint32_t address) {
     uint32_t p1_spike[WORD_COUNT(SPIKE_BYTES)];
     uint32_t p1_pad[WORD_COUNT(PAD_BYTES)];
     uint8_t p1_camera[CAMERA_BYTES];
+    uint8_t p1_view_matrix[MATRIX_BYTES];
+    uint8_t p1_camera_yaw_matrix[MATRIX_BYTES];
     uint32_t p1_hud[WORD_COUNT(HUD_BYTES)];
     uint32_t p1_gadget[WORD_COUNT(GADGET_BYTES)];
     uint32_t p1_gadget_aux[WORD_COUNT(GADGET_AUX_BYTES)];
@@ -194,8 +368,14 @@ static void second_spike_update(struct CPUState *cpu, uint32_t address) {
     (void)address;
 
     /* The nested native call passes through this entry hook again. */
-    if (g_in_p2_update || g_p2_spike == 0u || cpu == 0 ||
-        !normal_level_frame())
+    if (g_in_p2_update || cpu == 0 || !normal_level_frame())
+        return;
+
+    /* Netplay clears the offline mod plan, so allocate lazily for the trusted
+       game-owned netplay hook as well as through the offline activation hook. */
+    if (g_p2_storage == 0u)
+        activate_two_spikes();
+    if (g_p2_spike == 0u)
         return;
 
     stage = psx_mod_read_half(GAME_STAGE_ADDRESS);
@@ -206,55 +386,44 @@ static void second_spike_update(struct CPUState *cpu, uint32_t address) {
     if (!g_p2_initialized)
         return;
 
-    /* Preserve the live P1 state and the shared systems that Spike_Update
-       touches. The camera stays attached to P1 and the HUD/inventory advance
-       only once in the original update that follows this hook. */
     read_guest_words(SPIKE_ADDRESS, p1_spike, SPIKE_BYTES);
     read_guest_words(PAD_ADDRESS, p1_pad, PAD_BYTES);
-
-    /*
-     * This is a follower preview, not an independently simulated player.
-     * Re-seed P2 from P1 every frame so its animation/action state cannot
-     * drift away while both bodies share the game's single gadget selector,
-     * event system, and collision owner. The second body keeps only its own
-     * lateral offset between the two native update calls.
-     */
-    copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
-    psx_mod_write_word(g_p2_spike + 0x24u,
-                       p1_spike[0x24u / 4u] + SPAWN_SEPARATION);
     read_guest_bytes(CAMERA_ADDRESS, p1_camera, CAMERA_BYTES);
+    read_guest_bytes(VIEW_MATRIX_ADDRESS, p1_view_matrix, MATRIX_BYTES);
+    read_guest_bytes(CAMERA_YAW_MATRIX_ADDRESS, p1_camera_yaw_matrix,
+                     MATRIX_BYTES);
     read_guest_words(HUD_ADDRESS, p1_hud, HUD_BYTES);
     read_guest_words(GADGET_ADDRESS, p1_gadget, GADGET_BYTES);
     read_guest_words(GADGET_AUX_ADDRESS, p1_gadget_aux, GADGET_AUX_BYTES);
     p1_game_mode = psx_mod_read_word(GAME_PLAY_MODE_ADDRESS);
 
-    /* Project P2 into the game's single-player globals. */
+    /* Project P2's persistent player, pad, and gadget contexts into the
+       game's single-player globals for one native update. */
     copy_guest_words(SPIKE_ADDRESS, g_p2_spike, SPIKE_BYTES);
     copy_guest_words(PAD_ADDRESS, g_p2_pad, PAD_BYTES);
-    prepare_second_pad(p1_pad);
+    copy_guest_words(GADGET_ADDRESS, g_p2_gadget, GADGET_BYTES);
+    copy_guest_words(GADGET_AUX_ADDRESS, g_p2_gadget_aux, GADGET_AUX_BYTES);
+    prepare_second_pad();
 
-    /* Clear single-player-only events so P2 cannot switch the shared level
-       state, trigger exits, or launch a CD-backed idle animation. */
-    psx_mod_write_word(SPIKE_ADDRESS + SPIKE_COLLISION_OFFSET, 0u);
-    psx_mod_write_word(SPIKE_ADDRESS + SPIKE_EVENTS_OFFSET, 0u);
-    psx_mod_write_word(SPIKE_ADDRESS + SPIKE_PREVIOUS_EVENTS_OFFSET, 0u);
-    psx_mod_write_half(SPIKE_ADDRESS + SPIKE_IDLE_TIMER_OFFSET, 0u);
-    psx_mod_write_byte(SPIKE_ADDRESS + SPIKE_IDLE_TIMER_OFFSET + 2u, 0u);
-    psx_mod_write_byte(SPIKE_ADDRESS + SPIKE_IDLE_TIMER_OFFSET + 3u, 0u);
-
+    /* P2 shares the camera target and HUD, but not their mutable camera
+       matrices, gadget state, or animation-event history. */
     g_in_p2_update = 1;
     (void)psx_mod_call_guest(cpu, SPIKE_UPDATE_ADDRESS, cpu->gpr[31],
                              0u, 0u, 0u, 0u);
     g_in_p2_update = 0;
 
-    /* Save P2's independent player bytes, then restore P1 and all shared
-       systems before the original Spike_Update body runs. */
+    /* Persist the independent P2 state, including gadget animation/effects. */
     copy_guest_words(g_p2_spike, SPIKE_ADDRESS, SPIKE_BYTES);
     copy_guest_words(g_p2_pad, PAD_ADDRESS, PAD_BYTES);
+    copy_guest_words(g_p2_gadget, GADGET_ADDRESS, GADGET_BYTES);
+    copy_guest_words(g_p2_gadget_aux, GADGET_AUX_ADDRESS, GADGET_AUX_BYTES);
 
     write_guest_words(SPIKE_ADDRESS, p1_spike, SPIKE_BYTES);
     write_guest_words(PAD_ADDRESS, p1_pad, PAD_BYTES);
     write_guest_bytes(CAMERA_ADDRESS, p1_camera, CAMERA_BYTES);
+    write_guest_bytes(VIEW_MATRIX_ADDRESS, p1_view_matrix, MATRIX_BYTES);
+    write_guest_bytes(CAMERA_YAW_MATRIX_ADDRESS, p1_camera_yaw_matrix,
+                      MATRIX_BYTES);
     write_guest_words(HUD_ADDRESS, p1_hud, HUD_BYTES);
     write_guest_words(GADGET_ADDRESS, p1_gadget, GADGET_BYTES);
     write_guest_words(GADGET_AUX_ADDRESS, p1_gadget_aux, GADGET_AUX_BYTES);
@@ -263,17 +432,19 @@ static void second_spike_update(struct CPUState *cpu, uint32_t address) {
     psx_mod_counter_add("ape.coop.two-spikes.p2_updates", 1u);
 }
 
-static int suppress_second_spike_collision(struct CPUState *cpu,
-                                           uint32_t address) {
+static int route_second_spike_collision(struct CPUState *cpu,
+                                        uint32_t address) {
     (void)address;
-    if (!g_in_p2_update || cpu == 0)
+    if (!g_in_p2_update || cpu == 0 || g_p2_spike == 0u)
         return 0;
 
-    /* Collision_Set returns an integer in v0. P2's character-level collision
-       callbacks are deferred until each player has a distinct collision owner. */
-    cpu->gpr[2] = 0u;
-    psx_mod_counter_add("ape.coop.two-spikes.p2_collisions_suppressed", 1u);
-    return 1;
+    /* Collision_Set stores its third argument as the collision owner. Route
+       P2 registrations to the persistent P2 structure instead of &g_Spike. */
+    if (cpu->gpr[6] == SPIKE_ADDRESS) {
+        cpu->gpr[6] = g_p2_spike;
+        psx_mod_counter_add("ape.coop.two-spikes.p2_collisions_routed", 1u);
+    }
+    return 0;
 }
 
 PSX_MOD_CONSTRUCTOR(register_two_spike_prototype) {
@@ -285,5 +456,13 @@ PSX_MOD_CONSTRUCTOR(register_two_spike_prototype) {
         "ape.coop.two-spikes", SPIKE_UPDATE_ADDRESS, second_spike_update);
     (void)psx_mod_register_function_filter_plugin(
         "ape.coop.two-spikes-collision-filter", COLLISION_SET_ADDRESS,
-        suppress_second_spike_collision);
+        route_second_spike_collision);
+
+    /* Online matches clear package mods. Register the same deterministic
+       simulation hook as trusted game code and advertise the shared profile. */
+    (void)psx_mod_register_netplay_profile(&g_two_spike_netplay_profile);
+    (void)psx_game_register_netplay_function_entry(
+        SPIKE_UPDATE_ADDRESS, second_spike_update);
+    (void)psx_game_register_netplay_function_filter(
+        COLLISION_SET_ADDRESS, route_second_spike_collision);
 }
