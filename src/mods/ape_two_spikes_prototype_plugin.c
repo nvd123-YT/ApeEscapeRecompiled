@@ -62,8 +62,7 @@ enum {
     SPIKE_MODEL_MATRIX_POINTER_OFFSET = 0x14u,
     SPIKE_MODEL_JOINT_COUNT_OFFSET = 0x04u,
     MAX_SPIKE_MODEL_JOINTS = 64u,
-    /* Root matrix plus 64 bones, each 0x20 bytes. */
-    P2_MODEL_MATRIX_CAPACITY_BYTES = 0x820u,
+    P2_MODEL_MATRIX_CAPACITY_BYTES = 0x820u, /* 65 x 0x20-byte matrices. */
     P2_MODEL_MATRIX_ALIGNMENT_SLACK = 15u,
     SPIKE_IDLE_TIMER_OFFSET = 0x148u,
 
@@ -258,15 +257,6 @@ static void initialize_second_spike(uint16_t stage, uint16_t area) {
     }
 
     matrix_bytes = (joint_count + 1u) * MATRIX_BYTES;
-    if (g_p2_model_matrices == 0u) {
-        psx_mod_counter_add("ape.coop.two-spikes.model_matrix_storage_invalid", 1u);
-        return;
-    }
-    if (matrix_bytes > P2_MODEL_MATRIX_CAPACITY_BYTES) {
-        psx_mod_counter_add("ape.coop.two-spikes.model_matrix_storage_invalid", 1u);
-        return;
-    }
-
     copy_guest_words(g_p2_model_matrices, p1_model_matrices, matrix_bytes);
     psx_mod_write_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
                        g_p2_model_matrices);
