@@ -61,6 +61,11 @@ ANDROID_ENTRY = """int main(int argc, char** argv) {
     }
 #endif"""
 
+DMA_TIMESPEC_START = "struct timespec ts; timespec_get(&ts, TIME_UTC);   /* C11; diagnostics only */"
+ANDROID_DMA_CLOCK = """/* APE_ANDROID_DMA_CLOCK_MONOTONIC: use an API-23-compatible clock. */
+    struct timespec ts;
+    (void)clock_gettime(CLOCK_MONOTONIC, &ts); /* Android API 21+ */"""
+
 GL_START = "        if(COMMAND recomp_resolve_gl)\n            recomp_resolve_gl(_psx_gl_target)\n            target_link_libraries(${target} PRIVATE ${_psx_gl_target})\n        else()\n            # No recomp-ui checkout (PSX_RECOMP_UI=OFF): same resolution inline.\n            find_package(OpenGL)\n            if(TARGET OpenGL::GL)\n                target_link_libraries(${target} PRIVATE OpenGL::GL)\n            elseif(TARGET OpenGL::OpenGL)\n                target_link_libraries(${target} PRIVATE OpenGL::OpenGL)\n            elseif(OPENGL_gl_LIBRARY)\n                target_link_libraries(${target} PRIVATE \"${OPENGL_gl_LIBRARY}\")\n            elseif(OPENGL_opengl_LIBRARY)\n                target_link_libraries(${target} PRIVATE \"${OPENGL_opengl_LIBRARY}\")\n            endif()\n        endif()"
 
 ANDROID_GL_LINKAGE = "        if(ANDROID)\n            # APE_ANDROID_GLES_LINKAGE: Android provides GLES/EGL, not desktop GLX/OpenGL.\n            target_link_libraries(${target} PRIVATE GLESv3 EGL)\n        elseif(COMMAND recomp_resolve_gl)\n            recomp_resolve_gl(_psx_gl_target)\n            target_link_libraries(${target} PRIVATE ${_psx_gl_target})\n        else()\n            # No recomp-ui checkout (PSX_RECOMP_UI=OFF): same resolution inline.\n            find_package(OpenGL)\n            if(TARGET OpenGL::GL)\n                target_link_libraries(${target} PRIVATE OpenGL::GL)\n            elseif(TARGET OpenGL::OpenGL)\n                target_link_libraries(${target} PRIVATE OpenGL::OpenGL)\n            elseif(OPENGL_gl_LIBRARY)\n                target_link_libraries(${target} PRIVATE \"${OPENGL_gl_LIBRARY}\")\n            elseif(OPENGL_opengl_LIBRARY)\n                target_link_libraries(${target} PRIVATE \"${OPENGL_opengl_LIBRARY}\")\n            endif()\n        endif()"
@@ -116,6 +121,15 @@ def patch_android_renderer_fallback(text: str) -> str:
         )
     return text.replace(RENDERER_FALLBACK_START, ANDROID_RENDERER_FALLBACK, 1)
 
+def patch_android_dma_clock(text: str) -> str:
+    if "APE_ANDROID_DMA_CLOCK_MONOTONIC" in text:
+        return text
+    if text.count(DMA_TIMESPEC_START) != 1:
+        raise ValueError(
+            "Expected one known C11 timespec_get diagnostic clock; refusing unsafe Android DMA portability patch."
+        )
+    return text.replace(DMA_TIMESPEC_START, ANDROID_DMA_CLOCK, 1)
+
 def patch_main_cpp(text: str) -> str:
     if "#include <SDL3/SDL_system.h>" not in text:
         if text.count(MAIN_INCLUDE_ANCHOR) != 1:
@@ -137,12 +151,20 @@ def apply(framework_root: Path) -> None:
     main_cpp = framework_root / "runtime" / "src" / "main.cpp"
     gl_renderer = framework_root / "runtime" / "src" / "gpu_gl_renderer.c"
     fiber_file = framework_root / "runtime" / "src" / "psx_fiber.c"
-    if not runtime_cmake.is_file() or not main_cpp.is_file() or not gl_renderer.is_file() or not fiber_file.is_file():
+    dma_file = framework_root / "runtime" / "src" / "dma.c"
+    if (
+        not runtime_cmake.is_file()
+        or not main_cpp.is_file()
+        or not gl_renderer.is_file()
+        or not fiber_file.is_file()
+        or not dma_file.is_file()
+    ):
         raise FileNotFoundError(f"{framework_root} is not the expected PSXRecomp framework checkout")
     cmake_text = runtime_cmake.read_text(encoding="utf-8-sig")
     main_text = main_cpp.read_text(encoding="utf-8-sig")
     gl_text = gl_renderer.read_text(encoding="utf-8-sig")
     fiber_text = fiber_file.read_text(encoding="utf-8-sig")
+    dma_text = dma_file.read_text(encoding="utf-8-sig")
     runtime_cmake.write_text(patch_runtime_cmake(cmake_text), encoding="utf-8")
     patched_main = patch_main_cpp(main_text)
     patched_main = patch_android_renderer_fallback(patched_main)
@@ -158,6 +180,9 @@ def apply(framework_root: Path) -> None:
             raise ValueError("Expected one known POSIX ucontext fiber backend; refusing unsafe Android fiber patch.")
         fiber_text = fiber_text.replace(FIBER_ANCHOR, ANDROID_FIBER_BRANCH, 1)
         fiber_file.write_text(fiber_text, encoding="utf-8")
+    patched_dma = patch_android_dma_clock(dma_text)
+    if patched_dma != dma_text:
+        dma_file.write_text(patched_dma, encoding="utf-8")
 
 def main() -> int:
     parser = argparse.ArgumentParser()
