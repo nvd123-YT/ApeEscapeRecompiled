@@ -3,7 +3,7 @@ id = "ape.enhancement.two-spikes-prototype"
 version = "0.1.0"
 name = "Ape Escape Two Spike Prototype"
 author = "nvd123"
-description = "Experimental two-Spike gameplay preview. A second Spike follows the primary player's movement and jump input in ordinary levels; independent controls, gadgets, and player collision are not included yet."
+description = "Experimental two-Spike follower preview. The second Spike mirrors the primary player's action and gadget state at a fixed offset; independent controls and player collision are not included yet."
 resolver = "declarative"
 save_compatibility = "shared"
 
@@ -14,7 +14,7 @@ disc_sha256 = "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
 [[feature]]
 id = "two-spike-preview"
 name = "Two Spike Preview"
-description = "Spawn a second Spike beside the first in normal level gameplay. It follows Player 1's processed left-stick movement and a limited shared button mask; independent controls, gadgets and enemy/object collision are not implemented."
+description = "Spawn a second Spike beside the first in normal level gameplay. It mirrors Player 1's action/animation and current gadget, follows the same movement input, and uses a fixed offset; independent controls and enemy/object collision are not implemented."
 group = "Experimental Gameplay"
 default_enabled = false
 
