@@ -31,7 +31,7 @@ jobs:
           # Start with formatting checks. Static analysis needs the project's
           # generated compilation database and dependency include paths.
           tidy-checks: '-*'
-          lines-changed-only: true
+          lines-changed-only: false
           ignore: 'generated/**|psxrecomp-v4/**|recomp-ui/**'
           step-summary: true
           auto-fix: true
