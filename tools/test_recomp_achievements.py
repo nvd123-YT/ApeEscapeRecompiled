@@ -90,10 +90,14 @@ if "g_previous_monkey_flags[i] != 1u && current[i] == 1u" not in plugin:
     raise SystemExit("monkey milestones must count newly caught monkeys only")
 callback_start = plugin.index("void ape_recomp_achievements_memcard_read_complete(")
 callback_end = plugin.index("static void ape_snapshot_progress(", callback_start)
-if "rl_ach_save_loaded();" not in plugin[callback_start:callback_end]:
-    raise SystemExit("memory-card save loads must notify RecompLauncher")
-if "if (g_pending_save_load)" not in plugin:
-    raise SystemExit("pre-initialization memory-card loads must be reported after SDK init")
+if "g_pending_save_load = 1u;" not in plugin[callback_start:callback_end]:
+    raise SystemExit("memory-card reads must queue a save-load notification")
+baseline_start = plugin.index("} else if (psx_mod_read_byte(APE_PHASE_ADDRESS) == APE_PHASE_PLAYING)")
+baseline_end = plugin.index("ape_snapshot_progress(g_pending_saved_monkeys)", baseline_start)
+if "rl_ach_save_loaded();" not in plugin[baseline_start:baseline_end]:
+    raise SystemExit("RecompLauncher must be notified when a loaded save enters gameplay")
+if "if (g_pending_save_load)" not in plugin[baseline_start:baseline_end]:
+    raise SystemExit("save-load notification must be gated by the pending memory-card load")
 if "g_pending_snapshot_idle_frames < 3u" not in plugin:
     raise SystemExit("loaded progress must settle after card I/O before baselines are sampled")
 if "psx_mod_read_byte(APE_PHASE_ADDRESS) == APE_PHASE_PLAYING" not in plugin:

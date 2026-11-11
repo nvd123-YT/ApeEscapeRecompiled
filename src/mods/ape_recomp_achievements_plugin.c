@@ -173,11 +173,7 @@ void ape_recomp_achievements_memcard_read_complete(int card, uint16_t sector,
   g_pending_saved_monkeys = saved_total;
   g_pending_progress_snapshot = 1u;
   g_pending_snapshot_idle_frames = 0u;
-  if (g_initialized) {
-    rl_ach_save_loaded();
-  } else {
-    g_pending_save_load = 1u;
-  }
+  g_pending_save_load = 1u;
 }
 
 static void ape_snapshot_progress(uint32_t saved_monkeys) {
@@ -310,11 +306,6 @@ static void ape_recomp_achievements_vblank(void) {
         g_pending_casual = 0u;
       }
 
-      if (g_pending_save_load) {
-        rl_ach_save_loaded();
-        g_pending_save_load = 0u;
-      }
-
       if (!g_pending_progress_snapshot)
         ape_snapshot_progress(0u);
     }
@@ -328,6 +319,10 @@ static void ape_recomp_achievements_vblank(void) {
       if (g_pending_snapshot_idle_frames < 3u) {
         ++g_pending_snapshot_idle_frames;
       } else if (psx_mod_read_byte(APE_PHASE_ADDRESS) == APE_PHASE_PLAYING) {
+        if (g_pending_save_load) {
+          rl_ach_save_loaded();
+          g_pending_save_load = 0u;
+        }
         ape_snapshot_progress(g_pending_saved_monkeys);
         g_pending_progress_snapshot = 0u;
         g_pending_snapshot_idle_frames = 0u;
