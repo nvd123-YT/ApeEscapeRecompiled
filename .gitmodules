@@ -4,3 +4,6 @@
 [submodule "psxrecomp-v4"]
 	path = psxrecomp-v4
 	url = https://github.com/mstan/psxrecomp.git
+[submodule "recomp-achievements"]
+	path = recomp-achievements
+	url = https://github.com/elripalda/RecompAchievements.git
