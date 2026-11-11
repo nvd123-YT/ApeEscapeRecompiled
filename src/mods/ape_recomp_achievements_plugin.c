@@ -1,5 +1,5 @@
-#include "mod_plugins.h"
 #include "ape_recomp_achievements.h"
+#include "mod_plugins.h"
 
 #if !defined(__EMSCRIPTEN__)
 #include "memcard.h"
@@ -9,18 +9,18 @@
 #include <stdio.h>
 #include <string.h>
 
-#define APE_PHASE_ADDRESS             0x800F447Cu
-#define APE_PHASE_PLAYING             3u
-#define APE_MONKEY_FLAGS_ADDRESS      0x80139368u
-#define APE_MONKEY_FLAG_STRIDE        8u
+#define APE_PHASE_ADDRESS 0x800F447Cu
+#define APE_PHASE_PLAYING 3u
+#define APE_MONKEY_FLAGS_ADDRESS 0x80139368u
+#define APE_MONKEY_FLAG_STRIDE 8u
 #define APE_MONKEYS_PER_STAGE 24u
-#define APE_GADGET_MASK_ADDRESS       0x800F51C4u
-#define APE_STAGE_TIMER_ADDRESS       0x800F4490u
+#define APE_GADGET_MASK_ADDRESS 0x800F51C4u
+#define APE_STAGE_TIMER_ADDRESS 0x800F4490u
 
 /* Value 2 is the game's completed/100% state; value 1 only unlocks a stage. */
 typedef struct ApeStageAchievement {
-    uint32_t address;
-    const char *event;
+  uint32_t address;
+  const char *event;
 } ApeStageAchievement;
 
 static const ApeStageAchievement APE_STAGES[] = {
@@ -45,24 +45,18 @@ static const ApeStageAchievement APE_STAGES[] = {
     {0x800DFC85u, "complete_specters_factory"},
     {0x800DFC86u, "complete_tv_tower"},
     {0x800DFC88u, "complete_monkey_madness"},
-    {0x800DFC8Eu, "complete_peak_point_matrix"}
-};
+    {0x800DFC8Eu, "complete_peak_point_matrix"}};
 
 typedef struct ApeGadgetAchievement {
-    uint8_t mask;
-    const char *event;
+  uint8_t mask;
+  const char *event;
 } ApeGadgetAchievement;
 
 static const ApeGadgetAchievement APE_GADGETS[] = {
-    {0x01u, "unlock_stun_club"},
-    {0x02u, "unlock_time_net"},
-    {0x04u, "unlock_monkey_radar"},
-    {0x08u, "unlock_slingshot"},
-    {0x10u, "unlock_super_hoop"},
-    {0x20u, "unlock_magic_punch"},
-    {0x40u, "unlock_sky_flyer"},
-    {0x80u, "unlock_rc_car"}
-};
+    {0x01u, "unlock_stun_club"},    {0x02u, "unlock_time_net"},
+    {0x04u, "unlock_monkey_radar"}, {0x08u, "unlock_slingshot"},
+    {0x10u, "unlock_super_hoop"},   {0x20u, "unlock_magic_punch"},
+    {0x40u, "unlock_sky_flyer"},    {0x80u, "unlock_rc_car"}};
 
 /*
  * Community save-format notes for SCUS-94423 identify a 7F 4B marker at
@@ -71,21 +65,19 @@ static const ApeGadgetAchievement APE_GADGETS[] = {
  * at 0x2000, so the offsets below are relative to a candidate data block.
  * We accept only a block with the marker and all 19 known counts in range.
  */
-#define APE_CARD_BLOCK_SECTORS  64u
-#define APE_CARD_DATA_SECTOR    3u
-#define APE_CARD_MARKER_OFFSET  0x16u
-#define APE_CARD_GADGET_OFFSET  0x04u
-#define APE_CARD_MONKEY_OFFSET  0x49u
+#define APE_CARD_BLOCK_SECTORS 64u
+#define APE_CARD_DATA_SECTOR 3u
+#define APE_CARD_MARKER_OFFSET 0x16u
+#define APE_CARD_GADGET_OFFSET 0x04u
+#define APE_CARD_MONKEY_OFFSET 0x49u
 
 static const uint8_t APE_SAVE_STAGE_INDEX[19] = {
-    0u, 1u, 2u, 3u, 4u, 5u, 7u, 8u, 9u, 10u,
-    11u, 12u, 14u, 15u, 16u, 19u, 20u, 21u, 23u
-};
+    0u,  1u,  2u,  3u,  4u,  5u,  7u,  8u,  9u, 10u,
+    11u, 12u, 14u, 15u, 16u, 19u, 20u, 21u, 23u};
 
 static const uint8_t APE_SAVE_STAGE_MAX[19] = {
-    4u, 6u, 7u, 14u, 13u, 8u, 8u, 8u, 11u, 6u,
-    9u, 9u, 12u, 10u, 20u, 13u, 10u, 12u, 24u
-};
+    4u, 6u, 7u,  14u, 13u, 8u,  8u,  8u,  11u, 6u,
+    9u, 9u, 12u, 10u, 20u, 13u, 10u, 12u, 24u};
 
 static uint8_t g_initialized;
 static uint8_t g_pending_casual;
@@ -116,21 +108,20 @@ static uint8_t g_pending_progress_snapshot;
 static uint8_t g_pending_snapshot_idle_frames;
 
 static void ape_recomp_achievements_mark_casual_internal(const char *reason) {
-    if (g_casual_sent)
-        return;
-    g_casual_sent = 1u;
-    if (g_initialized) {
-        rl_ach_casual(reason != NULL ? reason : "cheats");
-    } else {
-        g_pending_casual = 1u;
-        (void)snprintf(g_pending_casual_reason,
-                       sizeof(g_pending_casual_reason), "%s",
-                       reason != NULL ? reason : "cheats");
-    }
+  if (g_casual_sent)
+    return;
+  g_casual_sent = 1u;
+  if (g_initialized) {
+    rl_ach_casual(reason != NULL ? reason : "cheats");
+  } else {
+    g_pending_casual = 1u;
+    (void)snprintf(g_pending_casual_reason, sizeof(g_pending_casual_reason),
+                   "%s", reason != NULL ? reason : "cheats");
+  }
 }
 
 void ape_recomp_achievements_mark_casual(const char *reason) {
-    ape_recomp_achievements_mark_casual_internal(reason);
+  ape_recomp_achievements_mark_casual_internal(reason);
 }
 
 static int ape_saved_card_total(const uint8_t *sector, uint32_t *total_out) {
@@ -229,165 +220,159 @@ static uint32_t ape_total_monkeys(void) {
 }
 
 static void ape_check_monkey_milestones(uint32_t total) {
-    if (total >= 1u && !g_monkey_one_sent) {
-        g_monkey_one_sent = 1u;
-        rl_ach_event("caught_one_monkey");
-    }
-    if (total >= 10u && !g_monkey_ten_sent) {
-        g_monkey_ten_sent = 1u;
-        rl_ach_event("caught_10_monkeys");
-    }
-    if (total >= 100u && !g_monkey_hundred_sent) {
-        g_monkey_hundred_sent = 1u;
-        rl_ach_event("caught_100_monkeys");
-    }
-    if (total >= 204u && !g_monkey_all_sent) {
-        g_monkey_all_sent = 1u;
-        rl_ach_event("caught_all_204_monkeys");
-    }
+  if (total >= 1u && !g_monkey_one_sent) {
+    g_monkey_one_sent = 1u;
+    rl_ach_event("caught_one_monkey");
+  }
+  if (total >= 10u && !g_monkey_ten_sent) {
+    g_monkey_ten_sent = 1u;
+    rl_ach_event("caught_10_monkeys");
+  }
+  if (total >= 100u && !g_monkey_hundred_sent) {
+    g_monkey_hundred_sent = 1u;
+    rl_ach_event("caught_100_monkeys");
+  }
+  if (total >= 204u && !g_monkey_all_sent) {
+    g_monkey_all_sent = 1u;
+    rl_ach_event("caught_all_204_monkeys");
+  }
 }
 
 static void ape_check_stage_and_gadget_unlocks(void) {
-    size_t i;
-    const uint8_t gadgets = psx_mod_read_byte(APE_GADGET_MASK_ADDRESS);
+  size_t i;
+  const uint8_t gadgets = psx_mod_read_byte(APE_GADGET_MASK_ADDRESS);
 
-    if (!g_stage_state_valid || !g_gadget_state_valid) {
-      for (i = 0u; i < sizeof(APE_STAGES) / sizeof(APE_STAGES[0]); ++i) {
-        g_stage_previous_completed[i] =
-            psx_mod_read_byte(APE_STAGES[i].address) >= 2u ? 1u : 0u;
-      }
-      g_stage_state_valid = 1u;
-      g_previous_gadget_mask = gadgets;
-      g_gadget_state_valid = 1u;
-      return;
-    }
-
+  if (!g_stage_state_valid || !g_gadget_state_valid) {
     for (i = 0u; i < sizeof(APE_STAGES) / sizeof(APE_STAGES[0]); ++i) {
-      const uint8_t completed =
+      g_stage_previous_completed[i] =
           psx_mod_read_byte(APE_STAGES[i].address) >= 2u ? 1u : 0u;
-      if (!g_stage_previous_completed[i] && completed)
-        rl_ach_event(APE_STAGES[i].event);
-      g_stage_previous_completed[i] = completed;
     }
-
-    for (i = 0u; i < sizeof(APE_GADGETS) / sizeof(APE_GADGETS[0]); ++i) {
-      const uint8_t mask = APE_GADGETS[i].mask;
-      if ((g_previous_gadget_mask & mask) == 0u && (gadgets & mask) != 0u)
-        rl_ach_event(APE_GADGETS[i].event);
-    }
+    g_stage_state_valid = 1u;
     g_previous_gadget_mask = gadgets;
+    g_gadget_state_valid = 1u;
+    return;
+  }
+
+  for (i = 0u; i < sizeof(APE_STAGES) / sizeof(APE_STAGES[0]); ++i) {
+    const uint8_t completed =
+        psx_mod_read_byte(APE_STAGES[i].address) >= 2u ? 1u : 0u;
+    if (!g_stage_previous_completed[i] && completed)
+      rl_ach_event(APE_STAGES[i].event);
+    g_stage_previous_completed[i] = completed;
+  }
+
+  for (i = 0u; i < sizeof(APE_GADGETS) / sizeof(APE_GADGETS[0]); ++i) {
+    const uint8_t mask = APE_GADGETS[i].mask;
+    if ((g_previous_gadget_mask & mask) == 0u && (gadgets & mask) != 0u)
+      rl_ach_event(APE_GADGETS[i].event);
+  }
+  g_previous_gadget_mask = gadgets;
 }
 
 static void ape_track_live_monkey_catches(void) {
-    uint8_t current[APE_MONKEYS_PER_STAGE];
-    uint16_t timer;
-    unsigned i;
+  uint8_t current[APE_MONKEYS_PER_STAGE];
+  uint16_t timer;
+  unsigned i;
 
-    if (psx_mod_read_byte(APE_PHASE_ADDRESS) != APE_PHASE_PLAYING) {
-        g_monkey_flags_valid = 0u;
-        g_previous_timer_valid = 0u;
-        return;
-    }
+  if (psx_mod_read_byte(APE_PHASE_ADDRESS) != APE_PHASE_PLAYING) {
+    g_monkey_flags_valid = 0u;
+    g_previous_timer_valid = 0u;
+    return;
+  }
 
-    timer = psx_mod_read_half(APE_STAGE_TIMER_ADDRESS);
-    if (g_previous_timer_valid && timer + 60u < g_previous_timer)
-        g_monkey_flags_valid = 0u;
+  timer = psx_mod_read_half(APE_STAGE_TIMER_ADDRESS);
+  if (g_previous_timer_valid && timer + 60u < g_previous_timer)
+    g_monkey_flags_valid = 0u;
 
-    g_previous_timer = timer;
-    g_previous_timer_valid = 1u;
+  g_previous_timer = timer;
+  g_previous_timer_valid = 1u;
 
-    for (i = 0u; i < APE_MONKEYS_PER_STAGE; ++i) {
-        current[i] = psx_mod_read_byte(
-            APE_MONKEY_FLAGS_ADDRESS + i * APE_MONKEY_FLAG_STRIDE);
-    }
+  for (i = 0u; i < APE_MONKEYS_PER_STAGE; ++i) {
+    current[i] = psx_mod_read_byte(APE_MONKEY_FLAGS_ADDRESS +
+                                   i * APE_MONKEY_FLAG_STRIDE);
+  }
 
-    if (!g_monkey_flags_valid) {
-        memcpy(g_previous_monkey_flags, current, sizeof(current));
-        g_monkey_flags_valid = 1u;
-        return;
-    }
-
-    for (i = 0u; i < APE_MONKEYS_PER_STAGE; ++i) {
-      if (g_previous_monkey_flags[i] != 1u && current[i] == 1u)
-        ++g_session_new_catches;
-    }
+  if (!g_monkey_flags_valid) {
     memcpy(g_previous_monkey_flags, current, sizeof(current));
+    g_monkey_flags_valid = 1u;
+    return;
+  }
+
+  for (i = 0u; i < APE_MONKEYS_PER_STAGE; ++i) {
+    if (g_previous_monkey_flags[i] != 1u && current[i] == 1u)
+      ++g_session_new_catches;
+  }
+  memcpy(g_previous_monkey_flags, current, sizeof(current));
 }
 
 static void ape_recomp_achievements_vblank(void) {
-    if (!psx_mod_game_started())
-        return;
+  if (!psx_mod_game_started())
+    return;
 
-    if (!g_initialized) {
-      rl_ach_set_info("apeescaperecompiled", "2.0.0");
-      (void)rl_ach_init("psx", NULL, NULL);
-      g_initialized = 1u;
+  if (!g_initialized) {
+    rl_ach_set_info("apeescaperecompiled", "2.0.0");
+    (void)rl_ach_init("psx", NULL, NULL);
+    g_initialized = 1u;
 
-      if (g_pending_casual) {
-        if (g_pending_casual_reason[0] != '\0')
-          rl_ach_casual(g_pending_casual_reason);
-        else
-          rl_ach_casual("cheats");
-        g_pending_casual = 0u;
-      }
-
-      if (!g_pending_progress_snapshot)
-        ape_snapshot_progress(0u);
+    if (g_pending_casual) {
+      if (g_pending_casual_reason[0] != '\0')
+        rl_ach_casual(g_pending_casual_reason);
+      else
+        rl_ach_casual("cheats");
+      g_pending_casual = 0u;
     }
 
-    rl_ach_frame();
+    if (!g_pending_progress_snapshot)
+      ape_snapshot_progress(0u);
+  }
 
-    /* A memory-card read is reported by SIO before the game consumes the
-     * loaded payload. Wait for card I/O to go quiet and gameplay to resume
-     * before baselining restored progress or checking any achievements. */
-    if (g_pending_progress_snapshot) {
-      if (g_pending_snapshot_idle_frames < 3u) {
-        ++g_pending_snapshot_idle_frames;
-      } else if (psx_mod_read_byte(APE_PHASE_ADDRESS) == APE_PHASE_PLAYING) {
-        if (g_pending_save_load) {
-          rl_ach_save_loaded();
-          g_pending_save_load = 0u;
-        }
-        ape_snapshot_progress(g_pending_saved_monkeys);
-        g_pending_progress_snapshot = 0u;
-        g_pending_snapshot_idle_frames = 0u;
+  rl_ach_frame();
+
+  /* A memory-card read is reported by SIO before the game consumes the
+   * loaded payload. Wait for card I/O to go quiet and gameplay to resume
+   * before baselining restored progress or checking any achievements. */
+  if (g_pending_progress_snapshot) {
+    if (g_pending_snapshot_idle_frames < 3u) {
+      ++g_pending_snapshot_idle_frames;
+    } else if (psx_mod_read_byte(APE_PHASE_ADDRESS) == APE_PHASE_PLAYING) {
+      if (g_pending_save_load) {
+        rl_ach_save_loaded();
+        g_pending_save_load = 0u;
       }
-
-      /* Never compare restored state with the pre-load baseline. */
-      if (g_pending_progress_snapshot)
-        return;
+      ape_snapshot_progress(g_pending_saved_monkeys);
+      g_pending_progress_snapshot = 0u;
+      g_pending_snapshot_idle_frames = 0u;
     }
 
-    ape_check_stage_and_gadget_unlocks();
-    ape_track_live_monkey_catches();
-    ape_check_monkey_milestones(ape_total_monkeys());
+    /* Never compare restored state with the pre-load baseline. */
+    if (g_pending_progress_snapshot)
+      return;
+  }
+
+  ape_check_stage_and_gadget_unlocks();
+  ape_track_live_monkey_catches();
+  ape_check_monkey_milestones(ape_total_monkeys());
 }
 
 static void ape_recomp_achievements_savestate_loaded(void) {
-    if (g_initialized) {
-        rl_ach_casual("save_state");
-        rl_ach_save_loaded();
-    } else {
-        ape_recomp_achievements_mark_casual_internal("save_state");
-    }
-    g_pending_saved_monkeys = ape_total_monkeys();
-    g_pending_progress_snapshot = 1u;
-    g_pending_snapshot_idle_frames = 0u;
+  if (g_initialized) {
+    rl_ach_casual("save_state");
+    rl_ach_save_loaded();
+  } else {
+    ape_recomp_achievements_mark_casual_internal("save_state");
+  }
+  g_pending_saved_monkeys = ape_total_monkeys();
+  g_pending_progress_snapshot = 1u;
+  g_pending_snapshot_idle_frames = 0u;
 }
 
-int ape_recomp_achievements_initialized(void) {
-    return g_initialized != 0u;
-}
+int ape_recomp_achievements_initialized(void) { return g_initialized != 0u; }
 
 #else
 
-void ape_recomp_achievements_mark_casual(const char *reason) {
-    (void)reason;
-}
+void ape_recomp_achievements_mark_casual(const char *reason) { (void)reason; }
 
-int ape_recomp_achievements_initialized(void) {
-    return 0;
-}
+int ape_recomp_achievements_initialized(void) { return 0; }
 
 void ape_recomp_achievements_memcard_read_complete(int card, uint16_t sector,
                                                    const uint8_t *data128) {
@@ -401,8 +386,8 @@ static void ape_recomp_achievements_savestate_loaded(void) {}
 #endif
 
 PSX_MOD_CONSTRUCTOR(register_ape_recomp_achievements) {
-    (void)psx_mod_register_vblank_plugin(
-        "ape.recomp-achievements", ape_recomp_achievements_vblank);
-    (void)psx_mod_register_savestate_plugin(
-        "ape.recomp-achievements", ape_recomp_achievements_savestate_loaded);
+  (void)psx_mod_register_vblank_plugin("ape.recomp-achievements",
+                                       ape_recomp_achievements_vblank);
+  (void)psx_mod_register_savestate_plugin(
+      "ape.recomp-achievements", ape_recomp_achievements_savestate_loaded);
 }
