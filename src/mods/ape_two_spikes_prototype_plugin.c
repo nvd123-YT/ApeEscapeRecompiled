@@ -3,6 +3,7 @@
 #include "mod_plugins.h"
 #include "sio.h"
 
+#include <SDL3/SDL.h>
 #include <stdint.h>
 
 /*
@@ -308,8 +309,53 @@ static void update_pad_history(uint32_t newly_pressed) {
     psx_mod_write_word(PAD_ADDRESS + PAD_HISTORY_INDEX_OFFSET, history_index);
 }
 
+static int keyboard_key_down(const bool *keys, int key_count,
+                               SDL_Scancode scancode) {
+    int index = (int)scancode;
+    return keys != 0 && index >= 0 && index < key_count && keys[index];
+}
+
+static int8_t keyboard_axis(const bool *keys, int key_count,
+                            SDL_Scancode negative, SDL_Scancode positive) {
+    int value = 0;
+    if (keyboard_key_down(keys, key_count, negative))
+        --value;
+    if (keyboard_key_down(keys, key_count, positive))
+        ++value;
+    return (int8_t)(value * 127);
+}
+
+static uint16_t keyboard_buttons(const bool *keys, int key_count) {
+    uint16_t buttons = 0u;
+
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_RCTRL))
+        buttons |= 0x0040u; /* Cross */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_RSHIFT))
+        buttons |= 0x0020u; /* Circle */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_RALT))
+        buttons |= 0x0080u; /* Square */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_RETURN))
+        buttons |= 0x0010u; /* Triangle */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_U))
+        buttons |= 0x0004u; /* L1 */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_O))
+        buttons |= 0x0008u; /* R1 */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_Y))
+        buttons |= 0x0001u; /* L2 */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_P))
+        buttons |= 0x0002u; /* R2 */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_INSERT))
+        buttons |= 0x0100u; /* Select */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_BACKSPACE))
+        buttons |= 0x0800u; /* Start */
+
+    return buttons;
+}
+
 static void prepare_second_pad(void) {
     uint8_t axes[4] = {0x80u, 0x80u, 0x80u, 0x80u};
+    int key_count = 0;
+    const bool *keys = SDL_GetKeyboardState(&key_count);
     uint16_t active_sio_buttons =
         (uint16_t)~sio_get_pad_buttons_slot(1);
     uint16_t game_buttons =
@@ -317,11 +363,15 @@ static void prepare_second_pad(void) {
                    ((active_sio_buttons & 0xFF00u) >> 8));
     uint32_t previous_held =
         psx_mod_read_word(PAD_ADDRESS + PAD_HELD_OFFSET);
-    uint32_t newly_pressed = (uint32_t)game_buttons & ~previous_held;
+    uint32_t newly_pressed;
     int8_t left_x;
     int8_t left_y;
     int8_t right_x;
     int8_t right_y;
+    int8_t key_left_x;
+    int8_t key_left_y;
+    int8_t key_right_x;
+    int8_t key_right_y;
     uint16_t left_magnitude;
     uint16_t right_magnitude;
 
@@ -330,6 +380,27 @@ static void prepare_second_pad(void) {
     left_y = (int8_t)((int)axes[1] - 128);
     right_x = (int8_t)((int)axes[2] - 128);
     right_y = (int8_t)((int)axes[3] - 128);
+
+    /* P2 keyboard defaults: arrows move, I/J/K/L aim, right-side modifiers
+       are the face buttons, and U/O/Y/P are the four shoulder buttons. */
+    key_left_x =
+        keyboard_axis(keys, key_count, SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT);
+    key_left_y =
+        keyboard_axis(keys, key_count, SDL_SCANCODE_UP, SDL_SCANCODE_DOWN);
+    key_right_x =
+        keyboard_axis(keys, key_count, SDL_SCANCODE_J, SDL_SCANCODE_L);
+    key_right_y =
+        keyboard_axis(keys, key_count, SDL_SCANCODE_I, SDL_SCANCODE_K);
+    if (key_left_x != 0)
+        left_x = key_left_x;
+    if (key_left_y != 0)
+        left_y = key_left_y;
+    if (key_right_x != 0)
+        right_x = key_right_x;
+    if (key_right_y != 0)
+        right_y = key_right_y;
+    game_buttons |= keyboard_buttons(keys, key_count);
+    newly_pressed = (uint32_t)game_buttons & ~previous_held;
 
     psx_mod_write_word(PAD_ADDRESS + PAD_HELD_OFFSET, game_buttons);
     psx_mod_write_word(PAD_ADDRESS + PAD_PRESSED_OFFSET, newly_pressed);
