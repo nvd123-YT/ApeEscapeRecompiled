@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Static contract checks for the RecompLauncher achievement integration."""
 import json
+import re
 import tomllib
 from collections import Counter
 from pathlib import Path
@@ -27,7 +28,7 @@ if achievements.get("game") != "apeescaperecompiled":
     raise SystemExit("RecompLauncher game ID must be apeescaperecompiled")
 if 'rl_ach_set_info("apeescaperecompiled", "2.0.0")' not in plugin:
     raise SystemExit("runtime game ID must match the achievement list")
-if "APE_MONKEYS_PER_STAGE         24u" not in plugin:
+if not re.search(r"^\s*#define\s+APE_MONKEYS_PER_STAGE\s+24u\s*$", plugin, re.MULTILINE):
     raise SystemExit("live catch tracking must include 24-monkey Peak Point Matrix")
 entries = achievements.get("achievements", [])
 if len(entries) != 34:
