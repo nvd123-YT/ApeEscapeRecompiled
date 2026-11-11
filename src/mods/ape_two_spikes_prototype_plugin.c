@@ -13,6 +13,9 @@
  * is sampled from logical SIO pad 1; in online play the framework supplies
  * the resolved second seat through that same SIO slot. P1 remains the camera
  * target and owns the shared HUD.
+ *
+ * Optional offline keyboard maps let both local players share one keyboard.
+ * Netplay receives only the synchronized controller-slot samples.
  */
 
 #define SPIKE_UPDATE_ADDRESS UINT32_C(0x80060780)
