@@ -521,20 +521,18 @@ static void second_spike_update_netplay(struct CPUState *cpu,
     second_spike_update_impl(cpu, address);
 }
 
-static int route_second_spike_collision(struct CPUState *cpu,
-                                        uint32_t address) {
+static void route_second_spike_collision(struct CPUState *cpu,
+                                           uint32_t address) {
     (void)address;
     if (!g_in_p2_update || cpu == 0 || g_p2_spike == 0u)
-        return 0;
+        return;
 
-    /* Collision_Set stores its third argument as the collision owner. Route
-       P2 registrations to the persistent P2 structure instead of &g_Spike. */
+    /* The owner may be either &g_Spike or a field within its structure. */
     if (cpu->gpr[6] >= SPIKE_ADDRESS &&
         cpu->gpr[6] < SPIKE_ADDRESS + SPIKE_BYTES) {
         cpu->gpr[6] = g_p2_spike + (cpu->gpr[6] - SPIKE_ADDRESS);
         psx_mod_counter_add("ape.coop.two-spikes.p2_collisions_routed", 1u);
     }
-    return 0;
 }
 
 PSX_MOD_CONSTRUCTOR(register_two_spike_prototype) {
@@ -544,8 +542,8 @@ PSX_MOD_CONSTRUCTOR(register_two_spike_prototype) {
         "ape.coop.two-spikes", activate_two_spikes);
     (void)psx_mod_register_function_entry_plugin(
         "ape.coop.two-spikes", SPIKE_UPDATE_ADDRESS, second_spike_update_offline);
-    (void)psx_mod_register_function_filter_plugin(
-        "ape.coop.two-spikes-collision-filter", COLLISION_SET_ADDRESS,
+    (void)psx_mod_register_function_entry_plugin(
+        "ape.coop.two-spikes-collision-owner", COLLISION_SET_ADDRESS,
         route_second_spike_collision);
 
     /* Online matches clear package mods. Register the same deterministic
@@ -553,6 +551,6 @@ PSX_MOD_CONSTRUCTOR(register_two_spike_prototype) {
     (void)psx_mod_register_netplay_profile(&g_two_spike_netplay_profile);
     (void)psx_game_register_netplay_function_entry(
         SPIKE_UPDATE_ADDRESS, second_spike_update_netplay);
-    (void)psx_game_register_netplay_function_filter(
+    (void)psx_game_register_netplay_function_entry(
         COLLISION_SET_ADDRESS, route_second_spike_collision);
 }
