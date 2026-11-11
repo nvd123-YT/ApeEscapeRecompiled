@@ -729,7 +729,7 @@ jobs:
               "run_number": os.environ["BUILD_RUN_NUMBER"],
               "built_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
           }
-          Path("dist/build-manifest.json").write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+          Path("dist/build-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
           print("Wrote dist/build-manifest.json for", manifest["tag"], manifest["commit"][:12])
           PY
 
