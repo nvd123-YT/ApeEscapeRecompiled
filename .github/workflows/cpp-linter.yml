@@ -7,7 +7,7 @@ on:
     branches: ['**']
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 
 jobs:
@@ -31,10 +31,9 @@ jobs:
           # Start with formatting checks. Static analysis needs the project's
           # generated compilation database and dependency include paths.
           tidy-checks: '-*'
-          lines-changed-only: false
+          lines-changed-only: true
           ignore: 'generated/**|psxrecomp-v4/**|recomp-ui/**'
           step-summary: true
-          auto-fix: true
 
       - name: Fail on lint errors
         if: steps.linter.outputs.checks-failed > 0
