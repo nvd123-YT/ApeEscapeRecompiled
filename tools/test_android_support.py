@@ -21,19 +21,22 @@ def check_patch_is_idempotent() -> None:
         main = framework / "runtime" / "src" / "main.cpp"
         gl_renderer = framework / "runtime" / "src" / "gpu_gl_renderer.c"
         fiber_file = framework / "runtime" / "src" / "psx_fiber.c"
+        dma_file = framework / "runtime" / "src" / "dma.c"
         cmake.write_text(PATCH.RUNTIME_START + "\n" + PATCH.SDL_STATIC_START + "\n" + PATCH.GL_START + "\n", encoding="utf-8")
         main.write_text(
             '#include "psx_sdl.h"\nint main(int argc, char** argv) {\n' +
             PATCH.RENDERER_FALLBACK_START + '\n  return argc + (argv != nullptr);\n}\n',
             encoding="utf-8",
         )
-        gl_renderer.write_text(PATCH.GL_DUMP_START + "\n", encoding="utf-8")
+        gl_renderer.write_text('        glClearDepth(1.0);\n' + PATCH.GL_DUMP_START + "\n", encoding="utf-8")
         fiber_file.write_text('#include "psx_fiber.h"\n#else /* POSIX: ucontext */\n#endif /* _WIN32 */\n', encoding="utf-8")
+        dma_file.write_text('#include <time.h>\nstatic unsigned long long hold_host_ticks(void) {\n    struct timespec ts; timespec_get(&ts, TIME_UTC);   /* C11; diagnostics only */\n    return (unsigned long long)ts.tv_sec * 1000000000ull + (unsigned long long)ts.tv_nsec;\n}\n', encoding="utf-8")
         PATCH.apply(framework)
         first_cmake = cmake.read_text(encoding="utf-8")
         first_main = main.read_text(encoding="utf-8")
         first_gl = gl_renderer.read_text(encoding="utf-8")
         first_fiber = fiber_file.read_text(encoding="utf-8")
+        first_dma = dma_file.read_text(encoding="utf-8")
         PATCH.apply(framework)
         if cmake.read_text(encoding="utf-8") != first_cmake:
             raise SystemExit("runtime CMake Android patch is not idempotent")
@@ -43,12 +46,29 @@ def check_patch_is_idempotent() -> None:
             raise SystemExit("GPU GL renderer Android patch is not idempotent")
         if fiber_file.read_text(encoding="utf-8") != first_fiber:
             raise SystemExit("Android AArch64 fiber patch is not idempotent")
+        if dma_file.read_text(encoding="utf-8") != first_dma:
+            raise SystemExit("Android DMA clock patch is not idempotent")
         if "APE_ANDROID_AARCH64_FIBERS" not in first_fiber:
             raise SystemExit("Android AArch64 fibers are not implemented")
         if "psx_fiber_android_switch" not in first_fiber or "getcontext(" in first_fiber.split("#else /* POSIX: ucontext */", 1)[0]:
             raise SystemExit("Android fibers must avoid Bionic's unavailable ucontext functions")
-        if "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" not in first_gl:
-            raise SystemExit("Android GLES must exclude unsupported glGetTexImage diagnostic code")
+        if "APE_ANDROID_GL_CLEAR_DEPTH" not in first_gl or "glClearDepthf(1.0f)" not in first_gl:
+            raise SystemExit("Android GLES must use glClearDepthf for depth-buffer initialization")
+        android_depth = first_gl.split("#else", 1)[0]
+        if "glClearDepth(1.0)" in android_depth:
+            raise SystemExit("Android GLES branch must not call desktop glClearDepth")
+        stereo_start = first_gl.index("#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:")
+        stereo_end = first_gl.index("#else", stereo_start)
+        android_gl = first_gl[stereo_start:stereo_end]
+        if "glGetTexImage(" in android_gl:
+            raise SystemExit("Android GLES branch must not call desktop glGetTexImage")
+        if "s_stereo_dump_left = 0;" not in android_gl:
+            raise SystemExit("Android stereo diagnostics must stop the pending dump loop")
+        android_dma = first_dma.split("#else", 1)[0]
+        if "clock_gettime(CLOCK_REALTIME, &ts)" not in android_dma:
+            raise SystemExit("Android DMA diagnostics must use the POSIX realtime clock")
+        if "timespec_get(" in android_dma:
+            raise SystemExit("Android DMA diagnostics must not call C11 timespec_get")
         if "add_library(${target} SHARED" not in first_cmake:
             raise SystemExit("Android runtime target is not a shared library")
         if 'OUTPUT_NAME "ApeEscapeRecomp"' not in first_cmake:
@@ -117,7 +137,7 @@ def check_project_scaffolding() -> None:
         "setup-android", "assembleDebug", "upload-artifact", "app-debug.apk",
         "download_disc.py", "chdman extractcd", "prepare_disc.py",
         "psxrecomp-game --config game.toml",
-        "GAME_ASSETS_REPO: NVDEMU/apeescapeprivateassets",
+        "GAME_ASSETS_REPO: nvd123-YT/apeescapeprivateassets",
         "GAME_ASSETS_FILENAME: Ape.Escape.USA.chd",
     ):
         if token not in workflow:

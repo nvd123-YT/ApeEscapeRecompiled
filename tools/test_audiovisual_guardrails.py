@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
-"""Regression checks for PGXP cracks, safe interpolation, and faithful defaults."""
+"""Regression checks for PGXP, native geometry presentation, and faithful defaults."""
 from pathlib import Path
 import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-frame_source = (ROOT / "src/mods/ape_frame_rate_plugin.cpp").read_text(encoding="utf-8")
-guard = re.search(
-    r"if\s*\(\s*index\s*>\s*1\s*\|\|(?P<conditions>[^)]*)\)\s*\{\s*replay\.invalidate\(\)",
-    frame_source,
-)
-if not guard:
-    raise SystemExit("Could not locate frame-smoothing invalidation guard.")
-conditions = guard.group("conditions")
-if not re.search(r"\bmode\s*!=\s*3\b", conditions):
-    raise SystemExit("Frame smoothing must capture only phase 3 (active gameplay).")
-finish = re.search(r"void\s+finish\s*\([^)]*\)\s*\{(?P<body>.*?)\n\}", frame_source, re.S)
-if not finish or not re.search(r"psx_mod_read_byte\(\s*0x800F447C\s*\)\s*!=\s*3", finish.group("body")):
-    raise SystemExit("Frame smoothing must re-check the gameplay phase before submitting an interpolated pass.")
+presentation_source = (ROOT / "src/mods/ape_presentation_capture.cpp").read_text(encoding="utf-8")
+for pattern in (
+    r"void\s+activate_live\s*\(\s*\)",
+    r"\bgpu_capture\s*=\s*active\.load\(\)\s*;",
+    r"\blive_enabled\s*=\s*active\.load\(\)\s*;",
+    r"psx_presentation_gpu_set_provider\s*\(\s*live_present\s*,\s*nullptr\s*\)\s*;",
+):
+    if not re.search(pattern, presentation_source):
+        raise SystemExit("Geometry Interpolation lost a required native-presentation hook: " + pattern)
 
 config = (ROOT / "game.toml").read_text(encoding="utf-8")
 if 'aspect_ratio = "4:3"' not in config:
@@ -53,14 +49,17 @@ if (framework / ".git").exists():
             f"Framework checkout ({checked_out_pin}) disagrees with framework_pins.txt ({expected_framework_pin})."
         )
 
-frame_smoothing_release = ROOT / "mods/preloaded/packages/ape.enhancement.frame-smoothing/1.0.0/manifest.toml"
-frame_smoothing_dev = ROOT / "mods/development/packages/ape.enhancement.frame-smoothing/1.0.0/manifest.toml"
-if frame_smoothing_release.exists():
-    raise SystemExit("Experimental frame interpolation must remain out of the release catalog.")
-if not frame_smoothing_dev.is_file():
-    raise SystemExit("Keep the interpolation implementation available in the development catalog.")
-if "default_enabled = false" not in frame_smoothing_dev.read_text(encoding="utf-8"):
-    raise SystemExit("Development-only interpolation must remain default-off.")
+geometry_manifest = ROOT / "mods/preloaded/packages/ape.enhancement.geometry-interpolation/1.0.0/manifest.toml"
+if not geometry_manifest.is_file():
+    raise SystemExit("Geometry Interpolation must be present in the release catalog.")
+geometry_text = geometry_manifest.read_text(encoding="utf-8")
+if "default_enabled = false" not in geometry_text or 'id = "ape.presentation.capture"' not in geometry_text:
+    raise SystemExit("Geometry Interpolation must remain default-off and use its native presenter.")
+legacy_frame_manifest = ROOT / "mods/development/packages/ape.enhancement.frame-smoothing/1.0.0/manifest.toml"
+if legacy_frame_manifest.exists():
+    raise SystemExit("The incompatible render-pass frame-smoothing package must be retired.")
+if not (ROOT / "tests/test_presentation_capture.cpp").is_file():
+    raise SystemExit("Keep the white-box geometry-capture regression test.")
 
 manifest = (ROOT / "mods/preloaded/packages/psx.enhancement.pgxp/1.0.0/manifest.toml").read_text(encoding="utf-8")
 if "default_enabled = false" not in manifest or 'default = "true"' not in manifest:
@@ -88,4 +87,4 @@ issues = (ROOT / "ISSUES.md").read_text(encoding="utf-8")
 for title in ("Widescreen: distance (draw-distance) pop-in", "circus balls pop/cull"):
     if title not in issues:
         raise SystemExit(f"Known unverified audiovisual issue was removed: {title}")
-print("AV guardrails passed: pinned PGXP depth/seam support is configured, precise culling is confined to the default-off PGXP mod, interpolation is gameplay-only, and Widescreen remains experimental/off by default.")
+print("AV guardrails passed: PGXP depth/seam support is configured, Geometry Interpolation is default-off with native fallback coverage, and Widescreen remains experimental/off by default.")

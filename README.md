@@ -87,7 +87,7 @@ The launcher keeps the usual configuration controls alongside this project's opt
 Every mod feature starts **off**. Enabling one item does not turn on the others. The bundled catalog currently includes:
 
 - **Widescreen** — select 16:9, 21:9 or adaptive presentation.
-- **Interpolated Rendering** — an experimental development-only package for intermediate-frame presentation rates. It is retained under `mods/development` for testing but is not included in public release catalogs pending hardware, transition-safety and audio-sync validation.
+- **Geometry Interpolation** — optional 60 FPS presentation from captured camera, model and terrain geometry. Gameplay simulation and audio retain their native cadence; unsupported scenes fall back to native presentation. Default-off and currently requires OpenGL.
 - **PGXP Precision** — optional geometry precision and texture handling.
 - **Skip FMVs** — skip full-motion videos through the game's normal completion path.
 - **Quick Gadget Select** — a compact gadget-selection row.
@@ -145,3 +145,12 @@ This is an unofficial community project maintained by **nvd123 / NVDEMU**. It us
 Ape Escape, its characters, original game code, music, graphics and related intellectual property belong to their respective rights holders, including Sony. This project is not endorsed by or affiliated with Sony Interactive Entertainment. You are responsible for sourcing and using game data and BIOS files lawfully. Do not upload copyrighted game images or retail BIOS files to public issues or pull requests.
 
 
+
+
+### Third-party notices
+
+The Geometry Interpolation implementation includes adapted upstream material.
+Its attribution, license and additional permissions are preserved in
+[`third_party/mstan/`](third_party/mstan/NOTICE.md). The same notice files are
+included in the Windows, macOS and AppImage packages. Android builds also apply GLES-compatible depth-clear and timing diagnostics without changing desktop rendering. This project remains
+independently maintained.

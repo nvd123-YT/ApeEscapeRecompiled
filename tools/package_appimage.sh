@@ -312,6 +312,15 @@ cp -a "$fw/runtime/licenses/." "$payload/licenses/"
 [ ! -f "$fw/THIRD_PARTY_ATTRIBUTION.md" ] || cp "$fw/THIRD_PARTY_ATTRIBUTION.md" "$payload/licenses/"
 cp "$fw/LICENSE" "$payload/licenses/psxrecomp-LICENSE"
 [ ! -f "$root/recomp-ui/LICENSE" ] || cp "$root/recomp-ui/LICENSE" "$payload/licenses/recomp-ui-LICENSE"
+
+# Keep the upstream-derived geometry presenter license and attribution beside
+# the packaged README so its relative third_party/mstan link remains valid.
+mkdir -p "$payload/third_party/mstan"
+for notice in LICENSE PERMISSIONS.md NOTICE.md; do
+    source="$root/third_party/mstan/$notice"
+    [ -f "$source" ] || { echo "missing upstream mstan notice: $source" >&2; exit 1; }
+    cp "$source" "$payload/third_party/mstan/$notice"
+done
 for doc in VERSION RELEASE_NOTES.md framework_pins.txt BUILD_PROVENANCE.json; do
     [ ! -f "$root/$doc" ] || cp "$root/$doc" "$payload/"
 done

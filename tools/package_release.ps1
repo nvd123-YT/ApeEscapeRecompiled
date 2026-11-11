@@ -184,6 +184,16 @@ if (-not (Test-Path $DevExe)) { $DevExe = Join-Path $BuildPath "psx-runtime.exe"
 Copy-Item $DevExe (Join-Path $Stage "ApeEscapeRecomp.exe")
 if (Test-Path (Join-Path $Root "README.md"))         { Copy-Item (Join-Path $Root "README.md") $Stage }
 if (Test-Path (Join-Path $Root "LICENSE"))           { Copy-Item (Join-Path $Root "LICENSE") $Stage }
+$ThirdPartyNoticeSource = Join-Path $Root 'third_party/mstan'
+$ThirdPartyNoticeDestination = Join-Path $Stage 'third_party/mstan'
+New-Item -ItemType Directory -Force $ThirdPartyNoticeDestination | Out-Null
+foreach ($notice in @('LICENSE', 'PERMISSIONS.md', 'NOTICE.md')) {
+    $source = Join-Path $ThirdPartyNoticeSource $notice
+    if (!(Test-Path -LiteralPath $source)) {
+        throw "Missing upstream mstan notice: $source"
+    }
+    Copy-Item -LiteralPath $source -Destination (Join-Path $ThirdPartyNoticeDestination $notice) -Force
+}
 $UpdateDir = Join-Path $Stage 'update'
 New-Item -ItemType Directory -Force $UpdateDir | Out-Null
 Copy-Item (Join-Path $Root 'tools/in_app_updater.py') (Join-Path $UpdateDir 'updater.py')
