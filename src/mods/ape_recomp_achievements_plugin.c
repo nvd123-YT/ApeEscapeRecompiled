@@ -313,7 +313,7 @@ static void ape_recomp_achievements_vblank(void) {
         g_initialized = 1u;
 
         if (g_pending_casual) {
-            rl_ach_casual(g_pending_casual_reason[0] != '\\0'
+            rl_ach_casual(g_pending_casual_reason[0] != '\0'
                               ? g_pending_casual_reason
                               : "cheats");
             g_pending_casual = 0u;
@@ -323,13 +323,6 @@ static void ape_recomp_achievements_vblank(void) {
          * an actual existing Ape Escape save gets the save-loaded marker. */
         if (ape_read_saved_monkeys(&g_saved_monkeys)) {
             rl_ach_save_loaded();
-            g_saved_monkeys_at_start = g_saved_monkeys;
-            g_last_saved_monkeys = g_saved_monkeys;
-            g_save_data_valid = 1u;
-        }
-        }
-
-        if (ape_read_saved_monkeys(&g_saved_monkeys)) {
             g_saved_monkeys_at_start = g_saved_monkeys;
             g_last_saved_monkeys = g_saved_monkeys;
             g_save_data_valid = 1u;
