@@ -3,7 +3,7 @@ id = "ape.enhancement.two-spikes-prototype"
 version = "0.1.0"
 name = "Ape Escape Two Spike Prototype"
 author = "nvd123"
-description = "Experimental two-Spike follower preview. The second Spike mirrors the primary player's action and gadget state at a fixed offset; independent controls and player collision are not included yet."
+description = "Experimental two-Spike co-op prototype with independent Player 2 controls, optional keyboard layouts for both players, separate movement/animation/gadget state, and routed collision ownership."
 resolver = "declarative"
 save_compatibility = "shared"
 
@@ -14,7 +14,7 @@ disc_sha256 = "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
 [[feature]]
 id = "two-spike-preview"
 name = "Two Spike Preview"
-description = "Spawn a second Spike beside the first in normal level gameplay. It mirrors Player 1's action/animation and current gadget, follows the same movement input, and uses a fixed offset; independent controls and enemy/object collision are not implemented."
+description = "Spawn a second independently controlled Spike. Optional separate keyboard layouts let both players share one keyboard; controller 2 and separate animation/gadget state are also supported."
 group = "Experimental Gameplay"
 default_enabled = false
 
@@ -25,3 +25,17 @@ id = "ape.coop.two-spikes"
 [[plugin]]
 feature = "two-spike-preview"
 id = "ape.coop.two-spikes-collision-owner"
+
+[[option]]
+feature = "two-spike-preview"
+id = "p1-keyboard"
+label = "Player 1 keyboard controls"
+type = "boolean"
+default = "true"
+
+[[option]]
+feature = "two-spike-preview"
+id = "p2-keyboard"
+label = "Player 2 keyboard controls"
+type = "boolean"
+default = "true"
