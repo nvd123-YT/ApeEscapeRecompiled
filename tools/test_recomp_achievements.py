@@ -101,6 +101,10 @@ if "if (g_pending_save_load)" not in plugin[baseline_start:baseline_end]:
     raise SystemExit("save-load notification must be gated by the pending memory-card load")
 if "g_pending_snapshot_idle_frames < 3u" not in plugin:
     raise SystemExit("loaded progress must settle after card I/O before baselines are sampled")
+if "g_card_read_candidate_valid" not in plugin or "g_card_read_candidate_monkeys" not in plugin:
+    raise SystemExit("a single card-browser data-sector read must not count as a loaded save")
+if "card == g_card_read_candidate_card" not in plugin or "sector == (uint16_t)(g_card_read_candidate_sector + 1u)" not in plugin:
+    raise SystemExit("save-load detection must require the next sector from the same card block")
 if "psx_mod_read_byte(APE_PHASE_ADDRESS) == APE_PHASE_PLAYING" not in plugin:
     raise SystemExit("loaded progress must be baselined on resumed gameplay")
 if assist.count('ape_recomp_achievements_mark_casual("cheats")') != 5:
