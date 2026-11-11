@@ -94,6 +94,14 @@ if(EMSCRIPTEN)
     endif()
 endif()
 
+# Ape Escape uses two independent controller seats. Enable the shared
+# recomp-net transport by default; pass -DAPE_ENABLE_NETPLAY=OFF for LAN-free
+# reference builds. PSX_MAX_PLAYERS also exposes the second SIO pad to P2.
+option(APE_ENABLE_NETPLAY "Build recomp-net online co-op support" ON)
+set(PSX_MAX_PLAYERS 2 CACHE STRING "Ape Escape controller seat count" FORCE)
+set(PSX_NETPLAY ${APE_ENABLE_NETPLAY} CACHE BOOL
+    "Enable the framework recomp-net integration" FORCE)
+
 include("${PSXRECOMP_ROOT}/runtime/runtime.cmake")
 
 # Build the framework's PGXP white-box regression suite against the patched
