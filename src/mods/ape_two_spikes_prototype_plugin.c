@@ -49,6 +49,9 @@ enum {
     GADGET_BYTES = 0x80u,
     GADGET_AUX_BYTES = 0x1Cu,
     SPIKE_GADGET_OFFSET = 0xF2u,
+    SPIKE_COLLISION_OFFSET = 0x50u,
+    SPIKE_EVENTS_OFFSET = 0xE0u,
+    SPIKE_PREVIOUS_EVENTS_OFFSET = 0xE4u,
     SPIKE_MODEL_MATRIX_POINTER_OFFSET = 0x14u,
     SPIKE_MODEL_JOINT_COUNT_OFFSET = 0x04u,
 
@@ -265,6 +268,13 @@ static void initialize_second_spike(uint16_t stage, uint16_t area) {
     psx_mod_write_word(g_p2_spike + SPIKE_MODEL_MATRIX_POINTER_OFFSET,
                        g_p2_model_matrices);
     g_p2_joint_count = joint_count;
+
+    /* The copied Spike state may contain P1's in-flight collision and
+       animation-event results. They belong to P1 and must not be consumed
+       by P2 on its first update. Later updates keep P2's own results. */
+    psx_mod_write_word(g_p2_spike + SPIKE_COLLISION_OFFSET, 0u);
+    psx_mod_write_word(g_p2_spike + SPIKE_EVENTS_OFFSET, 0u);
+    psx_mod_write_word(g_p2_spike + SPIKE_PREVIOUS_EVENTS_OFFSET, 0u);
 
     /* Start P2 beside P1 once; do not overwrite its position/action each frame. */
     psx_mod_write_word(g_p2_spike + 0x24u,
