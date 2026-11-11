@@ -137,6 +137,16 @@ file(GLOB APE_MOD_PLUGIN_SOURCES CONFIGURE_DEPENDS
 # "Mod catalog is missing package(s) the sources define". Bead beads-eio.3.101.
 set(APE_PRELOADED_MODS "${CMAKE_CURRENT_SOURCE_DIR}/mods/preloaded")
 
+# The browser cannot provide the desktop RL_SESSION pipe/socket transport.
+# Stage the normal catalog without the desktop-only achievement package.
+if(EMSCRIPTEN)
+    file(COPY "${APE_PRELOADED_MODS}/"
+         DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/mods-preloaded-browser")
+    file(REMOVE_RECURSE
+        "${CMAKE_CURRENT_BINARY_DIR}/mods-preloaded-browser/packages/ape.enhancement.recomp-achievements")
+    set(APE_PRELOADED_MODS "${CMAKE_CURRENT_BINARY_DIR}/mods-preloaded-browser")
+endif()
+
 # Only WebAssembly builds generate and link a bounded static AOT overlay tier.
 # Desktop builds retain their existing overlay cache/runtime compiler behavior.
 set(APE_BROWSER_STATIC_OVERLAY_ARGS)
@@ -183,6 +193,19 @@ psxrecomp_add_runtime_target(psx-runtime
     AUDIT_MOD_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/mods/development"
     PRELOADED_MODS_DIR "${APE_PRELOADED_MODS}"
 )
+
+# Link the official RecompLauncher achievement transport on desktop builds.
+if(NOT EMSCRIPTEN)
+    add_subdirectory(
+        "${CMAKE_CURRENT_SOURCE_DIR}/recomp-achievements/sdk"
+        "${CMAKE_CURRENT_BINARY_DIR}/recomp-achievements-sdk"
+        EXCLUDE_FROM_ALL
+    )
+    target_include_directories(psx-runtime PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/recomp-achievements/sdk/include"
+    )
+    target_link_libraries(psx-runtime PRIVATE rl_achievements)
+endif()
 
 
 # Settings OST player playback (native desktop only; browser/Android remain unchanged).

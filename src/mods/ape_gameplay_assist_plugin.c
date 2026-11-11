@@ -1,4 +1,5 @@
 #include "mod_plugins.h"
+#include "ape_recomp_achievements.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -62,24 +63,28 @@ static int ape_assist_is_active(void) {
 static void ape_assist_infinite_lives(void) {
     if (!ape_assist_is_active())
         return;
+    ape_recomp_achievements_mark_casual("cheats");
     psx_mod_write_half(APE_LIVES_ADDRESS, 100u);
 }
 
 static void ape_assist_infinite_health(void) {
     if (!ape_assist_is_active())
         return;
+    ape_recomp_achievements_mark_casual("cheats");
     psx_mod_write_half(APE_HEALTH_ADDRESS, 5u);
 }
 
 static void ape_assist_infinite_air(void) {
     if (!ape_assist_is_active())
         return;
+    ape_recomp_achievements_mark_casual("cheats");
     psx_mod_write_half(APE_AIR_ADDRESS, 0x0258u);
 }
 
 static void ape_assist_all_gadgets(void) {
     if (!ape_assist_is_active())
         return;
+    ape_recomp_achievements_mark_casual("cheats");
 
     /* A bit per gadget. Write only if needed to avoid unnecessary RAM writes. */
     if (psx_mod_read_byte(APE_UNLOCKED_GADGETS_ADDRESS) != 0xFFu)
@@ -91,6 +96,7 @@ static void ape_assist_unlock_all_stages(void) {
 
     if (!ape_assist_is_active())
         return;
+    ape_recomp_achievements_mark_casual("cheats");
 
     for (i = 0; i < sizeof(APE_STAGE_STATUS_ADDRESSES) /
                         sizeof(APE_STAGE_STATUS_ADDRESSES[0]); ++i) {
