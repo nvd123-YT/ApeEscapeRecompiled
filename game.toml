@@ -1,4 +1,5 @@
 [game]
+players = 2
 name = "Ape Escape"
 id = "SCUS-94423"
 exe = "apeescape/SCUS_944.23"
@@ -350,3 +351,6 @@ address = "0x8007074C"
 expected = "0x000C6083" # sra t4,t4,2 after MFC2 t4,SZ3
 reg = 12
 max = 0x3FFC
+
+[netplay]
+content_negotiation = true
