@@ -23,6 +23,12 @@ if len(plugins) != 1 or plugins[0].get("id") != "ape.recomp-achievements":
 
 if achievements.get("format") != 1 or achievements.get("source") != "events" or achievements.get("console") != "psx":
     raise SystemExit("achievement list must use format 1, PS1, and code events")
+if achievements.get("game") != "apeescaperecompiled":
+    raise SystemExit("RecompLauncher game ID must be apeescaperecompiled")
+if 'rl_ach_set_info("apeescaperecompiled", "2.0.0")' not in plugin:
+    raise SystemExit("runtime game ID must match the achievement list")
+if "APE_MONKEYS_PER_STAGE         24u" not in plugin:
+    raise SystemExit("live catch tracking must include 24-monkey Peak Point Matrix")
 entries = achievements.get("achievements", [])
 if len(entries) != 34:
     raise SystemExit(f"expected 34 achievements (22 stages + 8 gadgets + 4 monkey milestones), found {len(entries)}")
@@ -69,11 +75,29 @@ for token in (
     "APE_CARD_MARKER_OFFSET  0x16u",
     "APE_CARD_GADGET_OFFSET  0x04u",
     "APE_CARD_MONKEY_OFFSET  0x49u",
-    "0x7Fu", "0x4Bu", "memcard_read_sector",
+    "0x7Fu", "0x4Bu", "ape_recomp_achievements_memcard_read_complete",
     "caught_all_204_monkeys",
 ):
     if token not in plugin:
         raise SystemExit(f"missing memory-card progress guard: {token}")
+if "ape_read_saved_monkeys" in plugin or "ape_update_saved_progress" in plugin:
+    raise SystemExit("startup card scans must not be used to award progress")
+if "!g_stage_previous_completed[i] && completed" not in plugin:
+    raise SystemExit("stage achievements must require an in-session completion edge")
+if "(g_previous_gadget_mask & mask) == 0u" not in plugin:
+    raise SystemExit("gadget achievements must require an in-session unlock edge")
+if "g_previous_monkey_flags[i] != 1u && current[i] == 1u" not in plugin:
+    raise SystemExit("monkey milestones must count newly caught monkeys only")
+callback_start = plugin.index("void ape_recomp_achievements_memcard_read_complete(")
+callback_end = plugin.index("static void ape_snapshot_progress(", callback_start)
+if "rl_ach_save_loaded();" not in plugin[callback_start:callback_end]:
+    raise SystemExit("memory-card save loads must notify RecompLauncher")
+if "if (g_pending_save_load)" not in plugin:
+    raise SystemExit("pre-initialization memory-card loads must be reported after SDK init")
+if "g_pending_snapshot_idle_frames < 3u" not in plugin:
+    raise SystemExit("loaded progress must settle after card I/O before baselines are sampled")
+if "psx_mod_read_byte(APE_PHASE_ADDRESS) == APE_PHASE_PLAYING" not in plugin:
+    raise SystemExit("loaded progress must be baselined on resumed gameplay")
 if assist.count('ape_recomp_achievements_mark_casual("cheats")') != 5:
     raise SystemExit("all five Gameplay Assist cheat features must mark achievements Casual")
 

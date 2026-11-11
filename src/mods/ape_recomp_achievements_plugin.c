@@ -13,7 +13,7 @@
 #define APE_PHASE_PLAYING             3u
 #define APE_MONKEY_FLAGS_ADDRESS      0x80139368u
 #define APE_MONKEY_FLAG_STRIDE        8u
-#define APE_MONKEYS_PER_STAGE         20u
+#define APE_MONKEYS_PER_STAGE         24u
 #define APE_GADGET_MASK_ADDRESS       0x800F51C4u
 #define APE_STAGE_TIMER_ADDRESS       0x800F4490u
 
@@ -91,8 +91,10 @@ static uint8_t g_initialized;
 static uint8_t g_pending_casual;
 static uint8_t g_casual_sent;
 static char g_pending_casual_reason[32];
-static uint8_t g_stage_sent[sizeof(APE_STAGES) / sizeof(APE_STAGES[0])];
-static uint8_t g_gadget_sent[sizeof(APE_GADGETS) / sizeof(APE_GADGETS[0])];
+static uint8_t g_stage_previous_completed[sizeof(APE_STAGES) / sizeof(APE_STAGES[0])];
+static uint8_t g_stage_state_valid;
+static uint8_t g_previous_gadget_mask;
+static uint8_t g_gadget_state_valid;
 static uint8_t g_monkey_one_sent;
 static uint8_t g_monkey_ten_sent;
 static uint8_t g_monkey_hundred_sent;
@@ -102,11 +104,11 @@ static uint8_t g_previous_monkey_flags[APE_MONKEYS_PER_STAGE];
 static uint8_t g_previous_timer_valid;
 static uint16_t g_previous_timer;
 static uint32_t g_session_new_catches;
-static uint32_t g_saved_monkeys;
 static uint32_t g_saved_monkeys_at_start;
-static uint32_t g_last_saved_monkeys;
-static uint32_t g_save_poll_frames;
-static uint8_t g_save_data_valid;
+static uint32_t g_pending_saved_monkeys;
+static uint8_t g_pending_save_load;
+static uint8_t g_pending_progress_snapshot;
+static uint8_t g_pending_snapshot_idle_frames;
 
 static void ape_recomp_achievements_mark_casual_internal(const char *reason) {
     if (g_casual_sent)
@@ -126,99 +128,82 @@ void ape_recomp_achievements_mark_casual(const char *reason) {
     ape_recomp_achievements_mark_casual_internal(reason);
 }
 
-static int ape_read_saved_monkeys(uint32_t *best_total) {
-    uint32_t best = 0u;
-    int found = 0;
-    int card;
+static int ape_saved_card_total(const uint8_t *sector, uint32_t *total_out) {
+    uint32_t total = 0u;
+    unsigned i;
 
-    if (best_total == NULL)
+    if (sector == NULL || total_out == NULL ||
+        sector[APE_CARD_MARKER_OFFSET] != 0x7Fu ||
+        sector[APE_CARD_MARKER_OFFSET + 1u] != 0x4Bu)
         return 0;
 
-    for (card = 0; card < 2; ++card) {
-        unsigned block;
-        if (!memcard_is_present(card))
-            continue;
-
-        for (block = 1u; block < 16u; ++block) {
-            uint8_t sector[MEMCARD_SECTOR_SIZE];
-            uint32_t total = 0u;
-            unsigned i;
-            int valid = 1;
-
-            if (memcard_read_sector(
-                    card,
-                    (int)(block * APE_CARD_BLOCK_SECTORS +
-                          APE_CARD_DATA_SECTOR),
-                    sector) != 0)
-                continue;
-
-            if (sector[APE_CARD_MARKER_OFFSET] != 0x7Fu ||
-                sector[APE_CARD_MARKER_OFFSET + 1u] != 0x4Bu)
-                continue;
-
-            for (i = 0u; i < 19u; ++i) {
-                const uint8_t count =
-                    sector[APE_CARD_MONKEY_OFFSET + APE_SAVE_STAGE_INDEX[i]];
-                if (count > APE_SAVE_STAGE_MAX[i]) {
-                    valid = 0;
-                    break;
-                }
-                total += count;
-            }
-
-            if (!valid || total > 204u)
-                continue;
-
-            found = 1;
-            if (total > best)
-                best = total;
-        }
+    for (i = 0u; i < 19u; ++i) {
+        const uint8_t count =
+            sector[APE_CARD_MONKEY_OFFSET + APE_SAVE_STAGE_INDEX[i]];
+        if (count > APE_SAVE_STAGE_MAX[i])
+            return 0;
+        total += count;
     }
 
-    if (found)
-        *best_total = best;
-    return found;
+    if (total > 204u)
+        return 0;
+    *total_out = total;
+    return 1;
 }
 
-static void ape_update_saved_progress(void) {
-    uint32_t saved_total = 0u;
+/* Called only after a guest-initiated SIO memory-card sector read completes.
+ * The marker is in the game's save payload (block-relative sector 3), not in
+ * the host-side card scan used for diagnostics or launcher save browsing. */
+void ape_recomp_achievements_memcard_read_complete(
+    int card, uint16_t sector, const uint8_t *data128) {
+    uint32_t saved_total;
 
-    ++g_save_poll_frames;
-    if (g_save_poll_frames < 120u)
+    /* Any further card traffic means the title is still consuming card data. */
+    if (g_pending_progress_snapshot)
+        g_pending_snapshot_idle_frames = 0u;
+
+    if (card < 0 || card >= 2 || !memcard_is_present(card) ||
+        sector >= MEMCARD_SECTORS ||
+        sector < APE_CARD_BLOCK_SECTORS + APE_CARD_DATA_SECTOR ||
+        (sector % APE_CARD_BLOCK_SECTORS) != APE_CARD_DATA_SECTOR ||
+        !ape_saved_card_total(data128, &saved_total))
         return;
-    g_save_poll_frames = 0u;
 
-    if (!ape_read_saved_monkeys(&saved_total))
-        return;
-
-    if (!g_save_data_valid) {
-        /* A new card save may be created after this game session has started. */
-        g_saved_monkeys = saved_total;
-        g_saved_monkeys_at_start =
-            saved_total > g_session_new_catches
-                ? saved_total - g_session_new_catches
-                : 0u;
-        g_last_saved_monkeys = saved_total;
-        g_save_data_valid = 1u;
-        return;
-    }
-
-    if (saved_total < g_last_saved_monkeys) {
-        /* A lower saved total strongly suggests an older save was loaded. */
+    g_pending_saved_monkeys = saved_total;
+    g_pending_progress_snapshot = 1u;
+    g_pending_snapshot_idle_frames = 0u;
+    if (g_initialized) {
         rl_ach_save_loaded();
-        g_saved_monkeys_at_start = saved_total;
-        g_session_new_catches = 0u;
-        g_monkey_flags_valid = 0u;
+    } else {
+        g_pending_save_load = 1u;
     }
+}
 
-    g_saved_monkeys = saved_total;
-    g_last_saved_monkeys = saved_total;
+static void ape_snapshot_progress(uint32_t saved_monkeys) {
+    size_t i;
+    for (i = 0u; i < sizeof(APE_STAGES) / sizeof(APE_STAGES[0]); ++i) {
+        g_stage_previous_completed[i] =
+            psx_mod_read_byte(APE_STAGES[i].address) >= 2u ? 1u : 0u;
+    }
+    g_stage_state_valid = 1u;
+
+    g_previous_gadget_mask = psx_mod_read_byte(APE_GADGET_MASK_ADDRESS);
+    g_gadget_state_valid = 1u;
+
+    g_saved_monkeys_at_start = saved_monkeys;
+    g_session_new_catches = 0u;
+    g_monkey_one_sent = saved_monkeys >= 1u;
+    g_monkey_ten_sent = saved_monkeys >= 10u;
+    g_monkey_hundred_sent = saved_monkeys >= 100u;
+    g_monkey_all_sent = saved_monkeys >= 204u;
+
+    /* The first gameplay frame after this baseline is observation-only. */
+    g_monkey_flags_valid = 0u;
+    g_previous_timer_valid = 0u;
 }
 
 static uint32_t ape_total_monkeys(void) {
-    const uint32_t session_total =
-        g_saved_monkeys_at_start + g_session_new_catches;
-    return g_saved_monkeys > session_total ? g_saved_monkeys : session_total;
+    return g_saved_monkeys_at_start + g_session_new_catches;
 }
 
 static void ape_check_monkey_milestones(uint32_t total) {
@@ -244,27 +229,38 @@ static void ape_check_stage_and_gadget_unlocks(void) {
     size_t i;
     const uint8_t gadgets = psx_mod_read_byte(APE_GADGET_MASK_ADDRESS);
 
-    for (i = 0u; i < sizeof(APE_STAGES) / sizeof(APE_STAGES[0]); ++i) {
-        if (!g_stage_sent[i] &&
-            psx_mod_read_byte(APE_STAGES[i].address) >= 2u) {
-            g_stage_sent[i] = 1u;
-            rl_ach_event(APE_STAGES[i].event);
+    if (!g_stage_state_valid || !g_gadget_state_valid) {
+        for (i = 0u; i < sizeof(APE_STAGES) / sizeof(APE_STAGES[0]); ++i) {
+            g_stage_previous_completed[i] =
+                psx_mod_read_byte(APE_STAGES[i].address) >= 2u ? 1u : 0u;
         }
+        g_stage_state_valid = 1u;
+        g_previous_gadget_mask = gadgets;
+        g_gadget_state_valid = 1u;
+        return;
+    }
+
+    for (i = 0u; i < sizeof(APE_STAGES) / sizeof(APE_STAGES[0]); ++i) {
+        const uint8_t completed =
+            psx_mod_read_byte(APE_STAGES[i].address) >= 2u ? 1u : 0u;
+        if (!g_stage_previous_completed[i] && completed)
+            rl_ach_event(APE_STAGES[i].event);
+        g_stage_previous_completed[i] = completed;
     }
 
     for (i = 0u; i < sizeof(APE_GADGETS) / sizeof(APE_GADGETS[0]); ++i) {
-        if (!g_gadget_sent[i] && (gadgets & APE_GADGETS[i].mask) != 0u) {
-            g_gadget_sent[i] = 1u;
+        const uint8_t mask = APE_GADGETS[i].mask;
+        if ((g_previous_gadget_mask & mask) == 0u &&
+            (gadgets & mask) != 0u)
             rl_ach_event(APE_GADGETS[i].event);
-        }
     }
+    g_previous_gadget_mask = gadgets;
 }
 
 static void ape_track_live_monkey_catches(void) {
     uint8_t current[APE_MONKEYS_PER_STAGE];
     uint16_t timer;
     unsigned i;
-    unsigned caught = 0u;
 
     if (psx_mod_read_byte(APE_PHASE_ADDRESS) != APE_PHASE_PLAYING) {
         g_monkey_flags_valid = 0u;
@@ -282,25 +278,19 @@ static void ape_track_live_monkey_catches(void) {
     for (i = 0u; i < APE_MONKEYS_PER_STAGE; ++i) {
         current[i] = psx_mod_read_byte(
             APE_MONKEY_FLAGS_ADDRESS + i * APE_MONKEY_FLAG_STRIDE);
-        if (current[i] == 1u)
-            ++caught;
     }
 
     if (!g_monkey_flags_valid) {
         memcpy(g_previous_monkey_flags, current, sizeof(current));
         g_monkey_flags_valid = 1u;
-    } else {
-        for (i = 0u; i < APE_MONKEYS_PER_STAGE; ++i) {
-            if (g_previous_monkey_flags[i] != 1u && current[i] == 1u)
-                ++g_session_new_catches;
-        }
-        memcpy(g_previous_monkey_flags, current, sizeof(current));
+        return;
     }
 
-    if (caught > 0u && !g_monkey_one_sent) {
-        g_monkey_one_sent = 1u;
-        rl_ach_event("caught_one_monkey");
+    for (i = 0u; i < APE_MONKEYS_PER_STAGE; ++i) {
+        if (g_previous_monkey_flags[i] != 1u && current[i] == 1u)
+            ++g_session_new_catches;
     }
+    memcpy(g_previous_monkey_flags, current, sizeof(current));
 }
 
 static void ape_recomp_achievements_vblank(void) {
@@ -308,7 +298,7 @@ static void ape_recomp_achievements_vblank(void) {
         return;
 
     if (!g_initialized) {
-        rl_ach_set_info("ape-escape-recompiled", "2.0.0");
+        rl_ach_set_info("apeescaperecompiled", "2.0.0");
         (void)rl_ach_init("psx", NULL, NULL);
         g_initialized = 1u;
 
@@ -320,20 +310,36 @@ static void ape_recomp_achievements_vblank(void) {
             g_pending_casual = 0u;
         }
 
-        /* A fresh profile must remain eligible for Ranked achievements. Only
-         * an actual existing Ape Escape save gets the save-loaded marker. */
-        if (ape_read_saved_monkeys(&g_saved_monkeys)) {
+        if (g_pending_save_load) {
             rl_ach_save_loaded();
-            g_saved_monkeys_at_start = g_saved_monkeys;
-            g_last_saved_monkeys = g_saved_monkeys;
-            g_save_data_valid = 1u;
+            g_pending_save_load = 0u;
         }
+
+        if (!g_pending_progress_snapshot)
+            ape_snapshot_progress(0u);
     }
 
     rl_ach_frame();
+
+    /* A memory-card read is reported by SIO before the game consumes the
+     * loaded payload. Wait for card I/O to go quiet and gameplay to resume
+     * before baselining restored progress or checking any achievements. */
+    if (g_pending_progress_snapshot) {
+        if (g_pending_snapshot_idle_frames < 3u) {
+            ++g_pending_snapshot_idle_frames;
+        } else if (psx_mod_read_byte(APE_PHASE_ADDRESS) == APE_PHASE_PLAYING) {
+            ape_snapshot_progress(g_pending_saved_monkeys);
+            g_pending_progress_snapshot = 0u;
+            g_pending_snapshot_idle_frames = 0u;
+        }
+
+        /* Never compare restored state with the pre-load baseline. */
+        if (g_pending_progress_snapshot)
+            return;
+    }
+
     ape_check_stage_and_gadget_unlocks();
     ape_track_live_monkey_catches();
-    ape_update_saved_progress();
     ape_check_monkey_milestones(ape_total_monkeys());
 }
 
@@ -344,8 +350,9 @@ static void ape_recomp_achievements_savestate_loaded(void) {
     } else {
         ape_recomp_achievements_mark_casual_internal("save_state");
     }
-    g_monkey_flags_valid = 0u;
-    g_previous_timer_valid = 0u;
+    g_pending_saved_monkeys = ape_total_monkeys();
+    g_pending_progress_snapshot = 1u;
+    g_pending_snapshot_idle_frames = 0u;
 }
 
 int ape_recomp_achievements_initialized(void) {
@@ -362,6 +369,12 @@ int ape_recomp_achievements_initialized(void) {
     return 0;
 }
 
+void ape_recomp_achievements_memcard_read_complete(
+    int card, uint16_t sector, const uint8_t *data128) {
+    (void)card;
+    (void)sector;
+    (void)data128;
+}
 static void ape_recomp_achievements_vblank(void) {}
 static void ape_recomp_achievements_savestate_loaded(void) {}
 

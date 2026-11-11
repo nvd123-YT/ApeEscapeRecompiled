@@ -62,6 +62,20 @@ if(NOT APE_PGXP_PROJECTION_PATCH_RESULT EQUAL 0)
     message(FATAL_ERROR "Could not apply the PGXP projection correction to the pinned framework.")
 endif()
 
+# Report completed guest-side memory-card reads to the title's achievement
+# observer. This distinguishes a real save load from startup card inspection.
+if(NOT EMSCRIPTEN)
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/apply_recomp_achievements_memcard_patch.py"
+                --framework-root "${PSXRECOMP_ROOT}"
+        RESULT_VARIABLE APE_RECOMP_ACHIEVEMENTS_MEMCARD_PATCH_RESULT
+    )
+    if(NOT APE_RECOMP_ACHIEVEMENTS_MEMCARD_PATCH_RESULT EQUAL 0)
+        message(FATAL_ERROR "Could not hook completed memory-card reads for RecompLauncher achievements.")
+    endif()
+endif()
+
 # Android loads a shared SDL entry-point library and needs writable app-private
 # storage. The patch is guarded and does not touch source on desktop builds.
 if(ANDROID)
@@ -241,6 +255,12 @@ if(NOT EMSCRIPTEN AND NOT ANDROID)
 endif()
 
 if(BUILD_TESTING)
+    add_test(
+        NAME ape_recomp_achievements_contract_test
+        COMMAND "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_recomp_achievements.py"
+    )
+
     add_executable(ape_stick_response_test
         tests/test_stick_response.c
         "${PSXRECOMP_ROOT}/runtime/src/psx_stick.c"
