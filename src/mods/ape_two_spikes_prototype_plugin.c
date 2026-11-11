@@ -204,7 +204,7 @@ static void clear_second_pad_input(void) {
     psx_mod_write_word(g_p2_pad + PAD_HISTORY_INDEX_OFFSET, 0u);
 
     for (i = 0u; i < PAD_HISTORY_COUNT; ++i)
-        psx_mod_write_word(g_p2_pad + PAD_HISTORY_OFFSET + i * 4u, 0u);
+        psx_mod_write_half(g_p2_pad + PAD_HISTORY_OFFSET + i * 2u, 0u);
 }
 
 static void initialize_second_spike(uint16_t stage, uint16_t area) {
