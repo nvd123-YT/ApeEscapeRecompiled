@@ -72,6 +72,66 @@ GL_DUMP_START = "static void pass_dump_generation(int gi) {\n    PassGen *g = &s
 
 ANDROID_GL_DUMP = "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK: GLES has no glGetTexImage; pass dumps are\n * diagnostic tooling only and are disabled in the early Android target. */\nstatic void pass_dump_generation(int gi) { (void)gi; }\n#else\nstatic void pass_dump_generation(int gi) {\n    PassGen *g = &s_pgen[gi];\n    size_t n = (size_t)g->tex_w * (size_t)g->tex_h * 3u;\n    uint8_t *rgb = (uint8_t *)malloc(n);\n    if (!rgb) return;\n    glPixelStorei(GL_PACK_ALIGNMENT, 1);\n    for (uint32_t i = 0; i < g->n; i++) {\n        char path[512];\n        FILE *f;\n        glBindTexture(GL_TEXTURE_2D, s_pgen_tex[gi][i]);\n        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);\n        snprintf(path, sizeof path, \"%s/g%03llu_%02u_a%05u.png\", s_pdump_dir,\n                 (unsigned long long)s_pdump_gen, (unsigned)i,\n                 (unsigned)g->phase[i]);\n        f = fopen(path, \"wb\");\n        if (f) { (void)png_write_rgb(f, rgb, (uint32_t)g->tex_w, (uint32_t)g->tex_h); fclose(f); }\n    }\n    glBindTexture(GL_TEXTURE_2D, 0);\n    free(rgb);\n    s_pdump_gen++;\n    s_pdump_left--;\n}\n#endif"
 
+GL_STEREO_DUMP_START = """static void stereo_dump(const StereoPair *p) {
+    int w = p->tw[0], h = p->th[0];
+    size_t n = (size_t)w * h * 3u;
+    uint8_t *rgb = (uint8_t *)malloc(n * 2u);
+    uint8_t *sbs = (uint8_t *)malloc(n * 2u);
+    char path[512]; FILE *f;
+    if (!rgb || !sbs) { free(rgb); free(sbs); return; }
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    for (int eye = 0; eye < 2; eye++) {
+        glBindTexture(GL_TEXTURE_2D, p->tex[eye]);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb + eye * n);
+        snprintf(path, sizeof path, "%s/p%06llu_%s.png", s_stereo_dump_dir,
+                 (unsigned long long)p->id, eye ? "right" : "left");
+        f = fopen(path, "wb");
+        if (f) { (void)png_write_rgb(f, rgb + eye * n, w, h); fclose(f); }
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+    for (int row = 0; row < h; row++) for (int eye = 0; eye < 2; eye++)
+        memcpy(sbs + ((size_t)row * w * 2u + eye * w) * 3u,
+               rgb + eye * n + (size_t)row * w * 3u, (size_t)w * 3u);
+    snprintf(path, sizeof path, "%s/p%06llu_sbs.png", s_stereo_dump_dir,
+             (unsigned long long)p->id);
+    f = fopen(path, "wb");
+    if (f) { (void)png_write_rgb(f, sbs, w * 2u, h); fclose(f); }
+    if (s_stereo_capture_count < STEREO_CAPTURE_MAX) {
+        GLRenderStereoCapture *record = &s_stereo_captures[s_stereo_capture_count++];
+        record->pair_id = p->id; record->guest_cycle = p->cycle;
+        record->width = (uint32_t)w; record->height = (uint32_t)h;
+        memcpy(record->view_offset, p->view, sizeof record->view_offset);
+    }
+    free(rgb); free(sbs); s_stereo_dump_left--;
+}"""
+
+ANDROID_GL_STEREO_DUMP = """#if defined(__ANDROID__)
+/* APE_ANDROID_SKIP_STEREO_DUMP_TEX_READBACK: GLES has no glGetTexImage.
+ * Stereo PNG dumps are offline diagnostics and are not part of the Android player.
+ * Retire one pending diagnostic request without reading a texture back. */
+static void stereo_dump(const StereoPair *p) {
+    (void)p;
+    if (s_stereo_dump_left > 0) s_stereo_dump_left--;
+}
+#else
+""" + GL_STEREO_DUMP_START + """
+#endif"""
+
+
+def patch_android_gl_renderer(gl_text: str) -> str:
+    if ("#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" in gl_text or
+            "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_STEREO_DUMP_TEX_READBACK:" in gl_text):
+        return gl_text
+    if gl_text.count(GL_DUMP_START) == 1:
+        return gl_text.replace(GL_DUMP_START, ANDROID_GL_DUMP, 1)
+    if gl_text.count(GL_STEREO_DUMP_START) == 1:
+        return gl_text.replace(GL_STEREO_DUMP_START, ANDROID_GL_STEREO_DUMP, 1)
+    raise ValueError(
+        "Expected one known legacy pass-dump or current stereo-dump function; "
+        "refusing unsafe Android GLES compatibility patch."
+    )
+
+
 def patch_runtime_cmake(text: str) -> str:
     if "# APE_ANDROID_SHARED_RUNTIME" not in text:
         if text.count(RUNTIME_START) != 1:
@@ -147,11 +207,8 @@ def apply(framework_root: Path) -> None:
     patched_main = patch_main_cpp(main_text)
     patched_main = patch_android_renderer_fallback(patched_main)
     main_cpp.write_text(patched_main, encoding="utf-8")
-    if "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" not in gl_text:
-        if gl_text.count(GL_DUMP_START) != 1:
-            raise ValueError("Expected one known GPU GL pass-dump function; refusing unsafe Android GLES compatibility patch.")
-        gl_text = gl_text.replace(GL_DUMP_START, ANDROID_GL_DUMP, 1)
-        gl_renderer.write_text(gl_text, encoding="utf-8")
+    gl_text = patch_android_gl_renderer(gl_text)
+    gl_renderer.write_text(gl_text, encoding="utf-8")
     fiber_marker = "APE_ANDROID_AARCH64_FIBERS"
     if fiber_marker not in fiber_text:
         if fiber_text.count(FIBER_ANCHOR) != 1:

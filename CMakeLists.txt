@@ -249,6 +249,25 @@ if(BUILD_TESTING)
                 "${CMAKE_CURRENT_SOURCE_DIR}/mods/preloaded"
                 "${CMAKE_CURRENT_SOURCE_DIR}/mods/development"
     )
+
+    # Geometry Interpolation is a read-only presentation path. Exercise its
+    # source capture and retained GPU submission logic independently of a disc.
+    add_executable(ape_presentation_capture_test
+        tests/test_presentation_capture.cpp
+        src/mods/ape_presentation_capture.cpp
+        "${PSXRECOMP_ROOT}/runtime/src/presentation_scene.c"
+        "${PSXRECOMP_ROOT}/runtime/src/presentation_draw.c"
+    )
+    target_include_directories(ape_presentation_capture_test PRIVATE
+        "${PSXRECOMP_ROOT}/runtime/include"
+    )
+    if(MSVC)
+        target_compile_options(ape_presentation_capture_test PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(ape_presentation_capture_test PRIVATE -UNDEBUG)
+        target_link_libraries(ape_presentation_capture_test PRIVATE m)
+    endif()
+    add_test(NAME ape_presentation_capture_test COMMAND ape_presentation_capture_test)
     # Exercise the actual regenerated PsyQ v_wait caller against the shared
     # original/native induction harness. A clean checkout without generated
     # retail-derived C skips with code 77; release builds generate it first.

@@ -1,6 +1,7 @@
 #include "mod_media.h"
 #include "mod_packages.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 
@@ -48,9 +49,11 @@ int main(int argc, char **argv) {
       source / "packages/ape.enhancement.frame-smoothing";
   if (fs::exists(release_frame_smoothing))
     return fail("frame smoothing must be development-only");
-  const fs::path development_packages = development / "packages";
-  fs::copy(development_packages, root / "packages",
-           fs::copy_options::recursive);
+  const fs::path development_frame_smoothing =
+      development / "packages/ape.enhancement.frame-smoothing";
+  if (fs::exists(development_frame_smoothing))
+    return fail("legacy frame interpolation must be archived, not scanned as "
+                "a development mod");
 
   size_t manifest_count = 0;
   for (const fs::directory_entry &entry :
@@ -67,21 +70,16 @@ int main(int argc, char **argv) {
       return fail("manifest parse failed: " + error);
     }
   }
-  if (manifest_count != 11)
-    return fail("expected eleven title-owned package manifests");
+  if (manifest_count != 12)
+    return fail("expected twelve title-owned package manifests");
 
   PSXRecompV4::mod_clear_plugins_for_tests();
   for (const char *id : {"ape.widescreen.16-9",
                          "ape.widescreen.21-9",
                          "ape.widescreen.adaptive",
-                         "ape.frame-smoothing.60",
-                         "ape.frame-smoothing.90",
-                         "ape.frame-smoothing.120",
-                         "ape.frame-smoothing.144",
-                         "ape.frame-smoothing.165",
-                         "ape.frame-smoothing.240",
-                         "ape.frame-smoothing.display",
                          "ape.fmv.skip",
+                         "ape.presentation.capture",
+                         "ape.fix.prop-visibility",
                          "ape.gadgets.quick-select",
                          "ape.gadgets.sky-flyer-triple-jump",
                          "psx.pgxp",
@@ -112,13 +110,41 @@ int main(int argc, char **argv) {
     return fail("catalog scan failed: " + error);
   if (!manager.load_state(&error))
     return fail("default state failed: " + error);
-  if (manager.packages().size() != 11)
-    return fail("expected eleven title-owned package families");
+  if (manager.packages().size() != 12)
+    return fail("expected twelve title-owned package families");
 
   const auto default_plan = manager.resolve(kGameId, "", kDiscSha256);
   if (!default_plan.ok || !default_plan.writes.empty() ||
-      !default_plan.plugins.empty()) {
-    return fail("a gameplay-changing title feature was enabled by default");
+      default_plan.plugins.size() != 1 ||
+      default_plan.plugins.front().id != "ape.fix.prop-visibility") {
+    return fail("fresh profiles should enable only the hidden prop-visibility "
+                "correction");
+  }
+
+  // Geometry Interpolation is visible, opt-in, and uses the new native capture
+  // plugin. Disabling it must leave the unrelated prop-visibility fix intact.
+  if (!manager.set_feature_enabled("ape.enhancement.geometry-interpolation",
+                                   "geometry-interpolation", true, &error)) {
+    return fail(error);
+  }
+  const auto geometry_plan = manager.resolve(kGameId, "", kDiscSha256);
+  if (!geometry_plan.ok || !geometry_plan.writes.empty() ||
+      std::none_of(geometry_plan.plugins.begin(), geometry_plan.plugins.end(),
+                   [](const auto &plugin) {
+                     return plugin.id == "ape.presentation.capture";
+                   })) {
+    return fail("enabled geometry interpolation did not select the "
+                "presentation capture plugin");
+  }
+  if (!manager.set_feature_enabled("ape.enhancement.geometry-interpolation",
+                                   "geometry-interpolation", false, &error)) {
+    return fail(error);
+  }
+  const auto geometry_off_plan = manager.resolve(kGameId, "", kDiscSha256);
+  if (!geometry_off_plan.ok || geometry_off_plan.plugins.size() != 1 ||
+      geometry_off_plan.plugins.front().id != "ape.fix.prop-visibility") {
+    return fail("geometry interpolation did not return to its default-off "
+                "state");
   }
 
   // Every Quality-of-Life feature resolves independently and is default-off.
@@ -243,63 +269,12 @@ int main(int argc, char **argv) {
   }
 
   if (!manager.set_feature_enabled("ape.enhancement.widescreen", "widescreen",
-                                   false, &error) ||
-      !manager.set_feature_enabled("ape.enhancement.frame-smoothing",
-                                   "temporal-blending", true, &error)) {
-    return fail(error);
-  }
-  for (const auto &[choice, plugin] :
-       {std::pair{"60", "ape.frame-smoothing.60"},
-        std::pair{"90", "ape.frame-smoothing.90"},
-        std::pair{"120", "ape.frame-smoothing.120"},
-        std::pair{"144", "ape.frame-smoothing.144"},
-        std::pair{"165", "ape.frame-smoothing.165"},
-        std::pair{"240", "ape.frame-smoothing.240"},
-        std::pair{"display", "ape.frame-smoothing.display"}}) {
-    if (!manager.set_feature_option("ape.enhancement.frame-smoothing",
-                                    "temporal-blending", "rate", choice,
-                                    &error)) {
-      return fail(error);
-    }
-    const auto fps_plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!fps_plan.ok || !fps_plan.writes.empty() ||
-        fps_plan.plugins.size() != 1 || fps_plan.plugins.front().id != plugin) {
-      return fail(std::string("wrong interpolated frame-rate plan for ") +
-                  choice);
-    }
-  }
-  if (!manager.set_feature_enabled("ape.enhancement.frame-smoothing",
-                                   "temporal-blending", false, &error) ||
-      !manager.set_feature_enabled("ape.enhancement.quick-gadget-select",
-                                   "quick-gadget-select", true, &error)) {
+                                   false, &error)) {
     return fail(error);
   }
 
-  /*
-   * Quick Gadget Select is one vblank plugin plus one main_exe instruction
-   * patch. That patch has to be a declarative write rather than a
-   * psx_mod_write_code_word() from an activation callback: activation runs
-   * before the guest boots, so the game's own EXE load would overwrite it.
-   * Asserting the write is planned is what tells the two apart -- a
-   * plugin-count assertion passes either way while the patch does nothing.
-   */
-  const auto quick_select_plan = manager.resolve(kGameId, "", kDiscSha256);
-  if (!quick_select_plan.ok || quick_select_plan.plugins.size() != 1 ||
-      quick_select_plan.plugins.front().id != "ape.gadgets.quick-select") {
-    return fail("wrong Quick Gadget Select plugin plan");
-  }
-  if (quick_select_plan.writes.size() != 1)
-    return fail("Quick Gadget Select did not plan its guest-code patch");
-  {
-    const auto &write = quick_select_plan.writes.front();
-    const std::vector<uint8_t> expected{0xD2, 0xC2, 0x43, 0x80};
-    const std::vector<uint8_t> replacement{0x7C, 0x8F, 0x01, 0x08};
-    if (write.target != PSXRecompV4::ModPatchTarget::MainExe ||
-        write.location != 0x80063B6Cull || write.expected != expected ||
-        write.replacement != replacement) {
-      return fail("wrong Quick Gadget Select guest-code patch");
-    }
-  }
+  // The retired replay plugin is no longer compiled against the framework.
+  // Geometry Interpolation above is the supported replacement.
 
   if (!manager.set_feature_enabled("ape.enhancement.quick-gadget-select",
                                    "quick-gadget-select", false, &error)) {
@@ -431,7 +406,7 @@ int main(int argc, char **argv) {
   }
 
   fs::remove_all(root, ec);
-  std::cout << "Ape Escape catalog: 10 release packages + 1 development-only "
-               "interpolation package; gameplay features remain opt-in.\n";
+  std::cout << "Ape Escape catalog: 12 title-owned packages; "
+               "geometry interpolation remains opt-in.\n";
   return 0;
 }

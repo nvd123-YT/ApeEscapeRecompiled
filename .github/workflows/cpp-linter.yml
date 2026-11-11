@@ -32,7 +32,9 @@ jobs:
           # generated compilation database and dependency include paths.
           tidy-checks: '-*'
           lines-changed-only: true
-          ignore: 'generated/**|psxrecomp-v4/**|recomp-ui/**'
+          # These upstream v0.5.7 files are imported verbatim and retained with
+          # their source revision for safe future rebases; do not rewrite them.
+          ignore: 'generated/**|psxrecomp-v4/**|recomp-ui/**|src/mods/ape_presentation_capture.cpp|src/mods/ape_prop_visibility_plugin.c|tests/test_presentation_capture.cpp'
           step-summary: true
 
       - name: Fail on lint errors

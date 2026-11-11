@@ -48,7 +48,7 @@ def check_patch_is_idempotent() -> None:
         if "psx_fiber_android_switch" not in first_fiber or "getcontext(" in first_fiber.split("#else /* POSIX: ucontext */", 1)[0]:
             raise SystemExit("Android fibers must avoid Bionic's unavailable ucontext functions")
         if "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_GL_TEX_READBACK:" not in first_gl:
-            raise SystemExit("Android GLES must exclude unsupported glGetTexImage diagnostic code")
+            raise SystemExit("Android GLES must exclude legacy pass-dump glGetTexImage diagnostics")
         if "add_library(${target} SHARED" not in first_cmake:
             raise SystemExit("Android runtime target is not a shared library")
         if 'OUTPUT_NAME "ApeEscapeRecomp"' not in first_cmake:
@@ -69,6 +69,17 @@ def check_patch_is_idempotent() -> None:
             raise SystemExit("Android present fallback does not attempt the software renderer")
         if first_main.count("APE_ANDROID_SHARED_STORAGE_ROOT") != 1:
             raise SystemExit("Android storage marker should occur once")
+
+def check_current_framework_stereo_dump_patch() -> None:
+    patched = PATCH.patch_android_gl_renderer(PATCH.GL_STEREO_DUMP_START)
+    marker = "#if defined(__ANDROID__)\n/* APE_ANDROID_SKIP_STEREO_DUMP_TEX_READBACK:"
+    if marker not in patched:
+        raise SystemExit("Current PSXRecomp stereo diagnostic readback is not disabled on Android")
+    android_branch = patched.split("#else", 1)[0]
+    if "glGetTexImage(" in android_branch:
+        raise SystemExit("Android stereo diagnostic stub still references unsupported glGetTexImage")
+    if "s_stereo_dump_left--" not in android_branch:
+        raise SystemExit("Android stereo diagnostic stub does not retire pending dump requests")
 
 def android_workflow_version_trigger_count() -> int:
     workflow = (ROOT / ".github" / "workflows" / "android.yml").read_text(encoding="utf-8")
@@ -117,7 +128,7 @@ def check_project_scaffolding() -> None:
         "setup-android", "assembleDebug", "upload-artifact", "app-debug.apk",
         "download_disc.py", "chdman extractcd", "prepare_disc.py",
         "psxrecomp-game --config game.toml",
-        "GAME_ASSETS_REPO: NVDEMU/apeescapeprivateassets",
+        "GAME_ASSETS_REPO: nvd123-YT/apeescapeprivateassets",
         "GAME_ASSETS_FILENAME: Ape.Escape.USA.chd",
     ):
         if token not in workflow:
@@ -129,5 +140,6 @@ def check_project_scaffolding() -> None:
 
 if __name__ == "__main__":
     check_patch_is_idempotent()
+    check_current_framework_stereo_dump_patch()
     check_project_scaffolding()
     print("Android patch and project checks passed.")
