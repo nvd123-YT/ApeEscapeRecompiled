@@ -623,7 +623,7 @@ jobs:
           retention-days: 14
 
   normalize-nightly-release:
-    if: github.ref == 'refs/heads/master' && github.event.head_commit.message != 'release v2.0.0'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - name: Promote the existing Nightly release
@@ -703,8 +703,37 @@ jobs:
           set -euo pipefail
           python3 tools/render_release_notes.py --ref "$RELEASE_REF" --version-file packaging/release/VERSION --changelog CHANGELOG.md --output release-notes.md
 
-      - name: Publish or update the macOS release
-        if: github.event.head_commit.message != 'release v2.0.0'
+      - name: Create unique build manifest
+        if: github.ref == 'refs/heads/master'
+        shell: bash
+        env:
+          BUILD_COMMIT: ${{ github.sha }}
+          BUILD_RUN_ID: ${{ github.run_id }}
+          BUILD_RUN_NUMBER: ${{ github.run_number }}
+          BUILD_TAG: ape-escape-build-${{ github.run_number }}-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime, json, os
+          from pathlib import Path
+
+          version = Path("packaging/release/VERSION").read_text(encoding="utf-8").strip()
+          manifest = {
+              "schema_version": 1,
+              "repository": "nvd123-YT/ApeEscapeRecompiled",
+              "channel": "nightly",
+              "tag": os.environ["BUILD_TAG"],
+              "version": version,
+              "commit": os.environ["BUILD_COMMIT"],
+              "run_id": os.environ["BUILD_RUN_ID"],
+              "run_number": os.environ["BUILD_RUN_NUMBER"],
+              "built_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          }
+          Path("dist/build-manifest.json").write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+          print("Wrote dist/build-manifest.json for", manifest["tag"], manifest["commit"][:12])
+          PY
+
+      - name: Publish or update the Nightly updater channel
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'macos-nightly' }}
@@ -768,3 +797,23 @@ jobs:
             dist/SHA256SUMS-windows-x64.txt
             dist/SHA256SUMS-linux-x86_64.txt
             dist/release-manifest.json
+
+      - name: Publish a unique release for this master build
+        if: github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ape-escape-build-${{ github.run_number }}-${{ github.sha }}
+          target_commitish: ${{ github.sha }}
+          name: Ape Escape Recompiled — Build #${{ github.run_number }}
+          prerelease: true
+          make_latest: false
+          fail_on_unmatched_files: true
+          body_path: release-notes.md
+          files: |
+            dist/*.zip
+            dist/*.dmg
+            dist/*.AppImage
+            dist/SHA256SUMS-macos-*.txt
+            dist/SHA256SUMS-windows-x64.txt
+            dist/SHA256SUMS-linux-x86_64.txt
+            dist/build-manifest.json
