@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
                          "ape.challenge.monkey-mayhem",
                          "ape.challenge.nightmare-mode",
                          "ape.coop.two-spikes",
-                         "ape.coop.two-spikes-collision-filter"}) {
+                         "ape.coop.two-spikes-collision-owner"}) {
     if (!PSXRecompV4::mod_register_activation_plugin(id, no_op_plugin))
       return fail(std::string("could not register test plugin ") + id);
   }
@@ -446,8 +446,16 @@ int main(int argc, char **argv) {
         two_spike_plan.plugins.size() != 2 ||
         two_spike_plan.plugins[0].id != "ape.coop.two-spikes" ||
         two_spike_plan.plugins[1].id !=
-            "ape.coop.two-spikes-collision-filter") {
+            "ape.coop.two-spikes-collision-owner") {
       return fail("wrong Two Spike Preview plugin plan");
+    }
+    for (const char *option : {"p1-keyboard", "p2-keyboard"}) {
+      if (!manager.set_feature_option(
+              "ape.enhancement.two-spikes-prototype", "two-spike-preview",
+              option, "false", &error)) {
+        return fail(std::string("missing Two Spike keyboard option ") +
+                    option + ": " + error);
+      }
     }
   }
   if (!manager.set_feature_enabled("ape.enhancement.two-spikes-prototype",
