@@ -108,6 +108,10 @@ static uint32_t g_session_new_catches;
 static uint32_t g_saved_monkeys_at_start;
 static uint32_t g_pending_saved_monkeys;
 static uint8_t g_pending_save_load;
+static uint8_t g_card_read_candidate_valid;
+static int g_card_read_candidate_card;
+static uint16_t g_card_read_candidate_sector;
+static uint32_t g_card_read_candidate_monkeys;
 static uint8_t g_pending_progress_snapshot;
 static uint8_t g_pending_snapshot_idle_frames;
 
@@ -158,22 +162,43 @@ static int ape_saved_card_total(const uint8_t *sector, uint32_t *total_out) {
 void ape_recomp_achievements_memcard_read_complete(int card, uint16_t sector,
                                                    const uint8_t *data128) {
   uint32_t saved_total;
+  const int valid_save_sector =
+      card >= 0 && card < 2 && memcard_is_present(card) &&
+      sector < MEMCARD_SECTORS &&
+      sector >= APE_CARD_BLOCK_SECTORS + APE_CARD_DATA_SECTOR &&
+      (sector % APE_CARD_BLOCK_SECTORS) == APE_CARD_DATA_SECTOR &&
+      ape_saved_card_total(data128, &saved_total);
 
   /* Any further card traffic means the title is still consuming card data. */
   if (g_pending_progress_snapshot)
     g_pending_snapshot_idle_frames = 0u;
 
-  if (card < 0 || card >= 2 || !memcard_is_present(card) ||
-      sector >= MEMCARD_SECTORS ||
-      sector < APE_CARD_BLOCK_SECTORS + APE_CARD_DATA_SECTOR ||
-      (sector % APE_CARD_BLOCK_SECTORS) != APE_CARD_DATA_SECTOR ||
-      !ape_saved_card_total(data128, &saved_total))
-    return;
+  /*
+   * A card browser can inspect a save's first data sector without loading it.
+   * Treat the marker sector as a candidate only; require the immediately
+   * following sector from the same card block before declaring a load.
+   */
+  if (g_card_read_candidate_valid) {
+    if (card == g_card_read_candidate_card &&
+        sector == (uint16_t)(g_card_read_candidate_sector + 1u) &&
+        (sector / APE_CARD_BLOCK_SECTORS) ==
+            (g_card_read_candidate_sector / APE_CARD_BLOCK_SECTORS)) {
+      g_pending_saved_monkeys = g_card_read_candidate_monkeys;
+      g_pending_progress_snapshot = 1u;
+      g_pending_snapshot_idle_frames = 0u;
+      g_pending_save_load = 1u;
+      g_card_read_candidate_valid = 0u;
+      return;
+    }
+    g_card_read_candidate_valid = 0u;
+  }
 
-  g_pending_saved_monkeys = saved_total;
-  g_pending_progress_snapshot = 1u;
-  g_pending_snapshot_idle_frames = 0u;
-  g_pending_save_load = 1u;
+  if (valid_save_sector) {
+    g_card_read_candidate_card = card;
+    g_card_read_candidate_sector = sector;
+    g_card_read_candidate_monkeys = saved_total;
+    g_card_read_candidate_valid = 1u;
+  }
 }
 
 static void ape_snapshot_progress(uint32_t saved_monkeys) {
