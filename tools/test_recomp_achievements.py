@@ -13,6 +13,11 @@ manifest = tomllib.loads((ROOT / "mods/preloaded/packages/ape.enhancement.recomp
 achievements = json.loads((ROOT / "recomp/launcher/recomp-achievements.json").read_text(encoding="utf-8"))
 catalogue = (ROOT / "recomp/launcher/monkepedia.tsv").read_text(encoding="utf-8").splitlines()
 
+def require_define(name, value):
+    pattern = rf"^\s*#define\s+{re.escape(name)}\s+{re.escape(value)}\s*$"
+    if not re.search(pattern, plugin, re.MULTILINE):
+        raise SystemExit(f"missing or incorrect Ape Escape RAM mapping: {name}={value}")
+
 if manifest.get("id") != "ape.enhancement.recomp-achievements":
     raise SystemExit("wrong achievement package id")
 features = manifest.get("feature", [])
@@ -30,6 +35,16 @@ if 'rl_ach_set_info("apeescaperecompiled", "2.0.0")' not in plugin:
     raise SystemExit("runtime game ID must match the achievement list")
 if not re.search(r"^\s*#define\s+APE_MONKEYS_PER_STAGE\s+24u\s*$", plugin, re.MULTILINE):
     raise SystemExit("live catch tracking must include 24-monkey Peak Point Matrix")
+for macro, value in {
+    "APE_MONKEY_FLAGS_ADDRESS": "0x80139368u",
+    "APE_GADGET_MASK_ADDRESS": "0x800F51C4u",
+    "APE_CARD_BLOCK_SECTORS": "64u",
+    "APE_CARD_DATA_SECTOR": "3u",
+    "APE_CARD_MARKER_OFFSET": "0x16u",
+    "APE_CARD_GADGET_OFFSET": "0x04u",
+    "APE_CARD_MONKEY_OFFSET": "0x49u",
+}.items():
+    require_define(macro, value)
 entries = achievements.get("achievements", [])
 if len(entries) != 34:
     raise SystemExit(f"expected 34 achievements (22 stages + 8 gadgets + 4 monkey milestones), found {len(entries)}")
@@ -59,8 +74,6 @@ if dict(stage_counts) != expected_stage_counts or sum(stage_counts.values()) != 
     raise SystemExit("monkey catalogue no longer matches the verified 19-stage / 204-monkey roster")
 
 for token in (
-    "APE_MONKEY_FLAGS_ADDRESS      0x80139368u",
-    "APE_GADGET_MASK_ADDRESS       0x800F51C4u",
     "0x800DFC71u", "0x800DFC72u", "0x800DFC73u", "0x800DFC74u",
     "0x800DFC75u", "0x800DFC76u", "0x800DFC77u", "0x800DFC78u",
     "0x800DFC79u", "0x800DFC7Au", "0x800DFC7Bu", "0x800DFC7Cu",
@@ -72,10 +85,6 @@ for token in (
         raise SystemExit(f"missing Ape Escape RAM mapping: {token}")
 
 for token in (
-    "APE_CARD_DATA_SECTOR    3u",
-    "APE_CARD_MARKER_OFFSET  0x16u",
-    "APE_CARD_GADGET_OFFSET  0x04u",
-    "APE_CARD_MONKEY_OFFSET  0x49u",
     "0x7Fu", "0x4Bu", "ape_recomp_achievements_memcard_read_complete",
     "caught_all_204_monkeys",
 ):
