@@ -24,4 +24,4 @@ id = "ape.coop.two-spikes"
 
 [[plugin]]
 feature = "two-spike-preview"
-id = "ape.coop.two-spikes-collision-filter"
+id = "ape.coop.two-spikes-collision-owner"
