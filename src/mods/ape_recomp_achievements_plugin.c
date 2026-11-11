@@ -313,9 +313,10 @@ static void ape_recomp_achievements_vblank(void) {
         g_initialized = 1u;
 
         if (g_pending_casual) {
-            rl_ach_casual(g_pending_casual_reason[0] != '\0'
-                              ? g_pending_casual_reason
-                              : "cheats");
+            if (g_pending_casual_reason[0] != '\0')
+                rl_ach_casual(g_pending_casual_reason);
+            else
+                rl_ach_casual("cheats");
             g_pending_casual = 0u;
         }
 
