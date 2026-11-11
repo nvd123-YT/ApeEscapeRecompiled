@@ -62,6 +62,9 @@ enum {
     SPIKE_MODEL_MATRIX_POINTER_OFFSET = 0x14u,
     SPIKE_MODEL_JOINT_COUNT_OFFSET = 0x04u,
     MAX_SPIKE_MODEL_JOINTS = 64u,
+    P2_MODEL_MATRIX_CAPACITY_BYTES =
+        (MAX_SPIKE_MODEL_JOINTS + 1u) * MATRIX_BYTES,
+    P2_MODEL_MATRIX_ALIGNMENT_SLACK = 15u,
     SPIKE_IDLE_TIMER_OFFSET = 0x148u,
 
     GAMEPLAY_PHASE = 3u,
@@ -73,7 +76,9 @@ enum {
 };
 
 #define WORD_COUNT(bytes) ((bytes) / 4u)
-#define P2_STORAGE_BYTES (SPIKE_BYTES + PAD_BYTES + GADGET_BYTES + GADGET_AUX_BYTES)
+#define P2_STORAGE_BYTES                                                   \
+    (SPIKE_BYTES + PAD_BYTES + GADGET_BYTES + GADGET_AUX_BYTES +           \
+     P2_MODEL_MATRIX_ALIGNMENT_SLACK + P2_MODEL_MATRIX_CAPACITY_BYTES)
 
 static uint32_t g_p2_storage;
 static uint32_t g_p2_spike;
@@ -82,7 +87,6 @@ static uint32_t g_p2_gadget;
 static uint32_t g_p2_gadget_aux;
 /* Spike's model matrix pointer (+0x14) must not alias P1's mutable bone matrices. */
 static uint32_t g_p2_model_matrices;
-static uint32_t g_p2_model_matrix_bytes;
 static uint16_t g_p2_stage;
 static uint16_t g_p2_area;
 static int g_p2_initialized;
@@ -153,7 +157,6 @@ static void reset_host_state(void) {
     g_p2_gadget = 0u;
     g_p2_gadget_aux = 0u;
     g_p2_model_matrices = 0u;
-    g_p2_model_matrix_bytes = 0u;
     g_p2_stage = 0u;
     g_p2_area = 0u;
     g_p2_initialized = 0;
@@ -187,6 +190,8 @@ static void activate_two_spikes(void) {
     g_p2_pad = g_p2_spike + SPIKE_BYTES;
     g_p2_gadget = g_p2_pad + PAD_BYTES;
     g_p2_gadget_aux = g_p2_gadget + GADGET_BYTES;
+    g_p2_model_matrices =
+        (g_p2_gadget_aux + GADGET_AUX_BYTES + 15u) & ~15u;
     psx_mod_counter_add("ape.coop.two-spikes.activated", 1u);
 }
 
@@ -253,16 +258,9 @@ static void initialize_second_spike(uint16_t stage, uint16_t area) {
     }
 
     matrix_bytes = (joint_count + 1u) * MATRIX_BYTES;
-    if (g_p2_model_matrices == 0u) {
-        g_p2_model_matrices = psx_mod_alloc_guest_memory(matrix_bytes, 16u);
-        if (g_p2_model_matrices == 0u) {
-            psx_mod_counter_add("ape.coop.two-spikes.model_matrix_allocation_failed", 1u);
-            return;
-        }
-        g_p2_model_matrix_bytes = matrix_bytes;
-    } else if (g_p2_model_matrix_bytes != matrix_bytes) {
-        /* Never silently reuse a too-small matrix block if the model changes. */
-        psx_mod_counter_add("ape.coop.two-spikes.model_matrix_size_changed", 1u);
+    if (g_p2_model_matrices == 0u ||
+        matrix_bytes > P2_MODEL_MATRIX_CAPACITY_BYTES) {
+        psx_mod_counter_add("ape.coop.two-spikes.model_matrix_storage_invalid", 1u);
         return;
     }
 
