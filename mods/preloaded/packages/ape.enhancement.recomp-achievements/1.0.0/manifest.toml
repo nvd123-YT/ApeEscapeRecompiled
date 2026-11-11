@@ -1,0 +1,23 @@
+format_version = 5
+id = "ape.enhancement.recomp-achievements"
+version = "1.0.0"
+name = "RecompLauncher Achievements"
+author = "nvd123"
+description = "Reports Ape Escape stage, monkey and gadget achievements to RecompLauncher. This is a non-gameplay integration and starts enabled."
+resolver = "declarative"
+save_compatibility = "shared"
+
+[[target]]
+game_id = "SCUS-94423"
+disc_sha256 = "1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a"
+
+[[feature]]
+id = "recomp-achievements"
+name = "RecompLauncher Achievements"
+description = "Send stage completions, monkey-catching milestones and gadget unlocks to RecompLauncher. Does not change gameplay."
+group = "Integration"
+default_enabled = true
+
+[[plugin]]
+feature = "recomp-achievements"
+id = "ape.recomp-achievements"

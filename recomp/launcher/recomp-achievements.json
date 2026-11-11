@@ -1,0 +1,283 @@
+{
+  "format": 1,
+  "game": "apeescaperecompiled",
+  "source": "events",
+  "console": "psx",
+  "copies": [
+    "SCUS-94423"
+  ],
+  "achievements": [
+    {
+      "id": 1,
+      "title": "Fossil Field",
+      "description": "Complete Fossil Field.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_fossil_field"
+    },
+    {
+      "id": 2,
+      "title": "Primordial Ooze",
+      "description": "Complete Primordial Ooze.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_primordial_ooze"
+    },
+    {
+      "id": 3,
+      "title": "Molten Lava",
+      "description": "Complete Molten Lava.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_molten_lava"
+    },
+    {
+      "id": 4,
+      "title": "Thick Jungle",
+      "description": "Complete Thick Jungle.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_thick_jungle"
+    },
+    {
+      "id": 5,
+      "title": "Dark Ruins",
+      "description": "Complete Dark Ruins.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_dark_ruins"
+    },
+    {
+      "id": 6,
+      "title": "Cryptic Relics",
+      "description": "Complete Cryptic Relics.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_cryptic_relics"
+    },
+    {
+      "id": 7,
+      "title": "Stadium Attack",
+      "description": "Complete Stadium Attack.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_stadium_attack"
+    },
+    {
+      "id": 8,
+      "title": "Crabby Beach",
+      "description": "Complete Crabby Beach.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_crabby_beach"
+    },
+    {
+      "id": 9,
+      "title": "Coral Cave",
+      "description": "Complete Coral Cave.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_coral_cave"
+    },
+    {
+      "id": 10,
+      "title": "Dexter's Island",
+      "description": "Complete Dexter's Island.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_dexters_island"
+    },
+    {
+      "id": 11,
+      "title": "Snowy Mammoth",
+      "description": "Complete Snowy Mammoth.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_snowy_mammoth"
+    },
+    {
+      "id": 12,
+      "title": "Frosty Retreat",
+      "description": "Complete Frosty Retreat.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_frosty_retreat"
+    },
+    {
+      "id": 13,
+      "title": "Hot Springs",
+      "description": "Complete Hot Springs.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_hot_springs"
+    },
+    {
+      "id": 14,
+      "title": "Gladiator Attack",
+      "description": "Complete Gladiator Attack.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_gladiator_attack"
+    },
+    {
+      "id": 15,
+      "title": "Sushi Temple",
+      "description": "Complete Sushi Temple.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_sushi_temple"
+    },
+    {
+      "id": 16,
+      "title": "Wabi Sabi Wall",
+      "description": "Complete Wabi Sabi Wall.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_wabi_sabi_wall"
+    },
+    {
+      "id": 17,
+      "title": "Crumbling Castle",
+      "description": "Complete Crumbling Castle.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_crumbling_castle"
+    },
+    {
+      "id": 18,
+      "title": "City Park",
+      "description": "Complete City Park.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_city_park"
+    },
+    {
+      "id": 19,
+      "title": "Specter's Factory",
+      "description": "Complete Specter's Factory.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_specters_factory"
+    },
+    {
+      "id": 20,
+      "title": "TV Tower",
+      "description": "Complete TV Tower.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_tv_tower"
+    },
+    {
+      "id": 21,
+      "title": "Monkey Madness",
+      "description": "Complete Monkey Madness.",
+      "points": 5,
+      "type": "progression",
+      "event": "complete_monkey_madness"
+    },
+    {
+      "id": 22,
+      "title": "Peak Point Matrix",
+      "description": "Complete the final stage, Peak Point Matrix.",
+      "points": 50,
+      "type": "win",
+      "event": "complete_peak_point_matrix"
+    },
+    {
+      "id": 23,
+      "title": "Stun Club",
+      "description": "Unlock the Stun Club.",
+      "points": 5,
+      "type": "progression",
+      "event": "unlock_stun_club"
+    },
+    {
+      "id": 24,
+      "title": "Time Net",
+      "description": "Unlock the Time Net.",
+      "points": 5,
+      "type": "progression",
+      "event": "unlock_time_net"
+    },
+    {
+      "id": 25,
+      "title": "Monkey Radar",
+      "description": "Unlock the Monkey Radar.",
+      "points": 5,
+      "type": "progression",
+      "event": "unlock_monkey_radar"
+    },
+    {
+      "id": 26,
+      "title": "Slingshot",
+      "description": "Unlock the Slingshot.",
+      "points": 5,
+      "type": "progression",
+      "event": "unlock_slingshot"
+    },
+    {
+      "id": 27,
+      "title": "Super Hoop",
+      "description": "Unlock the Super Hoop.",
+      "points": 5,
+      "type": "progression",
+      "event": "unlock_super_hoop"
+    },
+    {
+      "id": 28,
+      "title": "Magic Punch",
+      "description": "Unlock the Magic Punch.",
+      "points": 5,
+      "type": "progression",
+      "event": "unlock_magic_punch"
+    },
+    {
+      "id": 29,
+      "title": "Sky Flyer",
+      "description": "Unlock the Sky Flyer.",
+      "points": 5,
+      "type": "progression",
+      "event": "unlock_sky_flyer"
+    },
+    {
+      "id": 30,
+      "title": "RC Car",
+      "description": "Unlock the RC Car.",
+      "points": 5,
+      "type": "progression",
+      "event": "unlock_rc_car"
+    },
+    {
+      "id": 31,
+      "title": "Caught One!",
+      "description": "Catch your first monkey.",
+      "points": 5,
+      "type": "progression",
+      "event": "caught_one_monkey"
+    },
+    {
+      "id": 32,
+      "title": "10 Monkeys Caught",
+      "description": "Catch 10 monkeys across the game.",
+      "points": 10,
+      "type": "progression",
+      "event": "caught_10_monkeys"
+    },
+    {
+      "id": 33,
+      "title": "100 Monkeys Caught",
+      "description": "Catch 100 monkeys across the game.",
+      "points": 25,
+      "type": "progression",
+      "event": "caught_100_monkeys"
+    },
+    {
+      "id": 34,
+      "title": "All 204 Monkeys",
+      "description": "Catch all 204 monkeys.",
+      "points": 50,
+      "type": "progression",
+      "event": "caught_all_204_monkeys"
+    }
+  ]
+}

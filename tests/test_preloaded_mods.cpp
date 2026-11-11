@@ -1,7 +1,9 @@
 #include "mod_media.h"
 #include "mod_packages.h"
 
+#include <algorithm>
 #include <filesystem>
+#include <string>
 #include <iostream>
 
 namespace fs = std::filesystem;
@@ -30,6 +32,18 @@ int fail(const std::string &message) {
 }
 
 void no_op_plugin() {}
+
+template <typename Plan>
+bool has_plugin(const Plan &plan, const std::string &id) {
+  return std::any_of(plan.plugins.begin(), plan.plugins.end(),
+                     [&](const auto &entry) { return entry.id == id; });
+}
+
+template <typename Plan>
+bool only_achievement_plugin(const Plan &plan) {
+  return plan.plugins.size() == 1 &&
+         has_plugin(plan, "ape.recomp-achievements");
+}
 
 } // namespace
 
@@ -67,8 +81,8 @@ int main(int argc, char **argv) {
       return fail("manifest parse failed: " + error);
     }
   }
-  if (manifest_count != 11)
-    return fail("expected eleven title-owned package manifests");
+  if (manifest_count != 12)
+    return fail("expected twelve title-owned package manifests");
 
   PSXRecompV4::mod_clear_plugins_for_tests();
   for (const char *id : {"ape.widescreen.16-9",
@@ -90,6 +104,7 @@ int main(int argc, char **argv) {
                          "ape.assist.infinite-air",
                          "ape.assist.all-gadgets",
                          "ape.assist.unlock-all-stages",
+                         "ape.recomp-achievements",
                          "ape.draw-distance.extended",
                          "ape.qol.quick-retry",
                          "ape.qol.camera-sensitivity",
@@ -112,13 +127,13 @@ int main(int argc, char **argv) {
     return fail("catalog scan failed: " + error);
   if (!manager.load_state(&error))
     return fail("default state failed: " + error);
-  if (manager.packages().size() != 11)
-    return fail("expected eleven title-owned package families");
+  if (manager.packages().size() != 12)
+    return fail("expected twelve title-owned package families");
 
   const auto default_plan = manager.resolve(kGameId, "", kDiscSha256);
   if (!default_plan.ok || !default_plan.writes.empty() ||
-      !default_plan.plugins.empty()) {
-    return fail("a gameplay-changing title feature was enabled by default");
+      !only_achievement_plugin(default_plan)) {
+    return fail("only the non-gameplay RecompLauncher achievements plugin should be enabled by default");
   }
 
   // Every Quality-of-Life feature resolves independently and is default-off.
@@ -134,8 +149,9 @@ int main(int argc, char **argv) {
     }
     const auto enabled_plan = manager.resolve(kGameId, "", kDiscSha256);
     if (!enabled_plan.ok || !enabled_plan.writes.empty() ||
-        enabled_plan.plugins.size() != 1 ||
-        enabled_plan.plugins.front().id != plugin) {
+        enabled_plan.plugins.size() != 2 ||
+        !has_plugin(enabled_plan, plugin) ||
+        !has_plugin(enabled_plan, "ape.recomp-achievements")) {
       return fail(std::string("wrong QoL plugin plan for ") + feature);
     }
     if (!manager.set_feature_enabled("ape.enhancement.qol-tools", feature,
@@ -143,7 +159,7 @@ int main(int argc, char **argv) {
       return fail(error);
     }
     const auto disabled_plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!disabled_plan.ok || !disabled_plan.plugins.empty() ||
+    if (!disabled_plan.ok || !only_achievement_plugin(disabled_plan) ||
         !disabled_plan.writes.empty()) {
       return fail(std::string("QoL feature remained active after disabling ") +
                   feature);
@@ -161,8 +177,9 @@ int main(int argc, char **argv) {
       return fail(error);
     }
     const auto sensitivity_plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!sensitivity_plan.ok || sensitivity_plan.plugins.size() != 1 ||
-        sensitivity_plan.plugins.front().id != "ape.qol.camera-sensitivity") {
+    if (!sensitivity_plan.ok || sensitivity_plan.plugins.size() != 2 ||
+        !has_plugin(sensitivity_plan, "ape.qol.camera-sensitivity") ||
+        !has_plugin(sensitivity_plan, "ape.recomp-achievements")) {
       return fail(std::string("wrong camera sensitivity plugin for ") + choice);
     }
   }
@@ -184,8 +201,9 @@ int main(int argc, char **argv) {
     }
     const auto assist_plan = manager.resolve(kGameId, "", kDiscSha256);
     if (!assist_plan.ok || !assist_plan.writes.empty() ||
-        assist_plan.plugins.size() != 1 ||
-        assist_plan.plugins.front().id != plugin) {
+        assist_plan.plugins.size() != 2 ||
+        !has_plugin(assist_plan, plugin) ||
+        !has_plugin(assist_plan, "ape.recomp-achievements")) {
       return fail(std::string("wrong Gameplay Assist plugin for ") + feature);
     }
     if (!manager.set_feature_enabled("ape.enhancement.gameplay-assists",
@@ -193,7 +211,7 @@ int main(int argc, char **argv) {
       return fail(error);
     }
     const auto off_plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!off_plan.ok || !off_plan.plugins.empty() || !off_plan.writes.empty()) {
+    if (!off_plan.ok || !only_achievement_plugin(off_plan) || !off_plan.writes.empty()) {
       return fail(
           std::string("Gameplay Assist remained active after disabling ") +
           feature);
@@ -207,8 +225,9 @@ int main(int argc, char **argv) {
   }
   {
     const auto plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!plan.ok || !plan.writes.empty() || plan.plugins.size() != 1 ||
-        plan.plugins.front().id != "ape.draw-distance.extended") {
+    if (!plan.ok || !plan.writes.empty() || plan.plugins.size() != 2 ||
+        !has_plugin(plan, "ape.draw-distance.extended") ||
+        !has_plugin(plan, "ape.recomp-achievements")) {
       return fail("wrong Extended Draw Distance plugin plan");
     }
   }
@@ -218,7 +237,7 @@ int main(int argc, char **argv) {
   }
   {
     const auto plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!plan.ok || !plan.plugins.empty() || !plan.writes.empty()) {
+    if (!plan.ok || !only_achievement_plugin(plan) || !plan.writes.empty()) {
       return fail("Extended Draw Distance remained active after disabling");
     }
   }
@@ -236,8 +255,9 @@ int main(int argc, char **argv) {
       return fail(error);
     }
     const auto plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!plan.ok || plan.plugins.size() != 1 ||
-        plan.plugins.front().id != plugin) {
+    if (!plan.ok || plan.plugins.size() != 2 ||
+        !has_plugin(plan, plugin) ||
+        !has_plugin(plan, "ape.recomp-achievements")) {
       return fail(std::string("wrong widescreen plugin for ") + choice);
     }
   }
@@ -263,7 +283,9 @@ int main(int argc, char **argv) {
     }
     const auto fps_plan = manager.resolve(kGameId, "", kDiscSha256);
     if (!fps_plan.ok || !fps_plan.writes.empty() ||
-        fps_plan.plugins.size() != 1 || fps_plan.plugins.front().id != plugin) {
+        fps_plan.plugins.size() != 2 ||
+        !has_plugin(fps_plan, plugin) ||
+        !has_plugin(fps_plan, "ape.recomp-achievements")) {
       return fail(std::string("wrong interpolated frame-rate plan for ") +
                   choice);
     }
@@ -284,8 +306,9 @@ int main(int argc, char **argv) {
    * plugin-count assertion passes either way while the patch does nothing.
    */
   const auto quick_select_plan = manager.resolve(kGameId, "", kDiscSha256);
-  if (!quick_select_plan.ok || quick_select_plan.plugins.size() != 1 ||
-      quick_select_plan.plugins.front().id != "ape.gadgets.quick-select") {
+  if (!quick_select_plan.ok || quick_select_plan.plugins.size() != 2 ||
+        !has_plugin(quick_select_plan, "ape.gadgets.quick-select") ||
+        !has_plugin(quick_select_plan, "ape.recomp-achievements")) {
     return fail("wrong Quick Gadget Select plugin plan");
   }
   if (quick_select_plan.writes.size() != 1)
@@ -317,9 +340,9 @@ int main(int argc, char **argv) {
   {
     const auto sky_flyer_plan = manager.resolve(kGameId, "", kDiscSha256);
     if (!sky_flyer_plan.ok || !sky_flyer_plan.writes.empty() ||
-        sky_flyer_plan.plugins.size() != 1 ||
-        sky_flyer_plan.plugins.front().id !=
-            "ape.gadgets.sky-flyer-triple-jump") {
+        sky_flyer_plan.plugins.size() != 2 ||
+        !has_plugin(sky_flyer_plan, "ape.gadgets.sky-flyer-triple-jump") ||
+        !has_plugin(sky_flyer_plan, "ape.recomp-achievements")) {
       return fail("wrong Sky Flyer Triple Jump plugin plan");
     }
   }
@@ -329,7 +352,7 @@ int main(int argc, char **argv) {
   }
   {
     const auto sky_flyer_off_plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!sky_flyer_off_plan.ok || !sky_flyer_off_plan.plugins.empty() ||
+    if (!sky_flyer_off_plan.ok || !only_achievement_plugin(sky_flyer_off_plan) ||
         !sky_flyer_off_plan.writes.empty()) {
       return fail("Sky Flyer Triple Jump remained active after disabling");
     }
@@ -348,8 +371,9 @@ int main(int argc, char **argv) {
     }
     const auto challenge_plan = manager.resolve(kGameId, "", kDiscSha256);
     if (!challenge_plan.ok || !challenge_plan.writes.empty() ||
-        challenge_plan.plugins.size() != 1 ||
-        challenge_plan.plugins.front().id != plugin) {
+        challenge_plan.plugins.size() != 2 ||
+        !has_plugin(challenge_plan, plugin) ||
+        !has_plugin(challenge_plan, "ape.recomp-achievements")) {
       return fail(std::string("wrong Challenge Pack plugin plan for ") +
                   feature);
     }
@@ -358,7 +382,7 @@ int main(int argc, char **argv) {
       return fail(error);
     }
     const auto challenge_off_plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!challenge_off_plan.ok || !challenge_off_plan.plugins.empty() ||
+    if (!challenge_off_plan.ok || !only_achievement_plugin(challenge_off_plan) ||
         !challenge_off_plan.writes.empty()) {
       return fail(std::string("Challenge Pack feature remained active: ") +
                   feature);
@@ -377,8 +401,9 @@ int main(int argc, char **argv) {
     }
     const auto hardcore_plan = manager.resolve(kGameId, "", kDiscSha256);
     if (!hardcore_plan.ok || !hardcore_plan.writes.empty() ||
-        hardcore_plan.plugins.size() != 1 ||
-        hardcore_plan.plugins.front().id != plugin) {
+        hardcore_plan.plugins.size() != 2 ||
+        !has_plugin(hardcore_plan, plugin) ||
+        !has_plugin(hardcore_plan, "ape.recomp-achievements")) {
       return fail(std::string("wrong Hardcore Challenges plugin plan for ") +
                   feature);
     }
@@ -387,7 +412,7 @@ int main(int argc, char **argv) {
       return fail(error);
     }
     const auto hardcore_off_plan = manager.resolve(kGameId, "", kDiscSha256);
-    if (!hardcore_off_plan.ok || !hardcore_off_plan.plugins.empty() ||
+    if (!hardcore_off_plan.ok || !only_achievement_plugin(hardcore_off_plan) ||
         !hardcore_off_plan.writes.empty()) {
       return fail(std::string("Hardcore Challenge remained active: ") +
                   feature);
@@ -431,7 +456,7 @@ int main(int argc, char **argv) {
   }
 
   fs::remove_all(root, ec);
-  std::cout << "Ape Escape catalog: 10 release packages + 1 development-only "
+  std::cout << "Ape Escape catalog: 11 release packages + 1 development-only "
                "interpolation package; gameplay features remain opt-in.\n";
   return 0;
 }

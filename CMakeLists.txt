@@ -62,6 +62,20 @@ if(NOT APE_PGXP_PROJECTION_PATCH_RESULT EQUAL 0)
     message(FATAL_ERROR "Could not apply the PGXP projection correction to the pinned framework.")
 endif()
 
+# Report completed guest-side memory-card reads to the title's achievement
+# observer. This distinguishes a real save load from startup card inspection.
+if(NOT EMSCRIPTEN)
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/apply_recomp_achievements_memcard_patch.py"
+                --framework-root "${PSXRECOMP_ROOT}"
+        RESULT_VARIABLE APE_RECOMP_ACHIEVEMENTS_MEMCARD_PATCH_RESULT
+    )
+    if(NOT APE_RECOMP_ACHIEVEMENTS_MEMCARD_PATCH_RESULT EQUAL 0)
+        message(FATAL_ERROR "Could not hook completed memory-card reads for RecompLauncher achievements.")
+    endif()
+endif()
+
 # Android loads a shared SDL entry-point library and needs writable app-private
 # storage. The patch is guarded and does not touch source on desktop builds.
 if(ANDROID)
@@ -137,6 +151,16 @@ file(GLOB APE_MOD_PLUGIN_SOURCES CONFIGURE_DEPENDS
 # "Mod catalog is missing package(s) the sources define". Bead beads-eio.3.101.
 set(APE_PRELOADED_MODS "${CMAKE_CURRENT_SOURCE_DIR}/mods/preloaded")
 
+# The browser cannot provide the desktop RL_SESSION pipe/socket transport.
+# Stage the normal catalog without the desktop-only achievement package.
+if(EMSCRIPTEN)
+    file(COPY "${APE_PRELOADED_MODS}/"
+         DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/mods-preloaded-browser")
+    file(REMOVE_RECURSE
+        "${CMAKE_CURRENT_BINARY_DIR}/mods-preloaded-browser/packages/ape.enhancement.recomp-achievements")
+    set(APE_PRELOADED_MODS "${CMAKE_CURRENT_BINARY_DIR}/mods-preloaded-browser")
+endif()
+
 # Only WebAssembly builds generate and link a bounded static AOT overlay tier.
 # Desktop builds retain their existing overlay cache/runtime compiler behavior.
 set(APE_BROWSER_STATIC_OVERLAY_ARGS)
@@ -184,6 +208,19 @@ psxrecomp_add_runtime_target(psx-runtime
     PRELOADED_MODS_DIR "${APE_PRELOADED_MODS}"
 )
 
+# Link the official RecompLauncher achievement transport on desktop builds.
+if(NOT EMSCRIPTEN)
+    add_subdirectory(
+        "${CMAKE_CURRENT_SOURCE_DIR}/recomp-achievements/sdk"
+        "${CMAKE_CURRENT_BINARY_DIR}/recomp-achievements-sdk"
+        EXCLUDE_FROM_ALL
+    )
+    target_include_directories(psx-runtime PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/recomp-achievements/sdk/include"
+    )
+    target_link_libraries(psx-runtime PRIVATE rl_achievements)
+endif()
+
 
 # Settings OST player playback (native desktop only; browser/Android remain unchanged).
 # Only the decoder is fetched at build time. Actual soundtrack tracks are downloaded
@@ -218,6 +255,12 @@ if(NOT EMSCRIPTEN AND NOT ANDROID)
 endif()
 
 if(BUILD_TESTING)
+    add_test(
+        NAME ape_recomp_achievements_contract_test
+        COMMAND "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_recomp_achievements.py"
+    )
+
     add_executable(ape_stick_response_test
         tests/test_stick_response.c
         "${PSXRECOMP_ROOT}/runtime/src/psx_stick.c"
