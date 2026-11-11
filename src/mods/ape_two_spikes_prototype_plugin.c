@@ -529,8 +529,9 @@ static int route_second_spike_collision(struct CPUState *cpu,
 
     /* Collision_Set stores its third argument as the collision owner. Route
        P2 registrations to the persistent P2 structure instead of &g_Spike. */
-    if (cpu->gpr[6] == SPIKE_ADDRESS) {
-        cpu->gpr[6] = g_p2_spike;
+    if (cpu->gpr[6] >= SPIKE_ADDRESS &&
+        cpu->gpr[6] < SPIKE_ADDRESS + SPIKE_BYTES) {
+        cpu->gpr[6] = g_p2_spike + (cpu->gpr[6] - SPIKE_ADDRESS);
         psx_mod_counter_add("ape.coop.two-spikes.p2_collisions_routed", 1u);
     }
     return 0;
