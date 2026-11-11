@@ -78,6 +78,7 @@ static uint16_t g_p2_stage;
 static uint16_t g_p2_area;
 static int g_p2_initialized;
 static int g_in_p2_update;
+static int g_allow_keyboard_fallback;
 
 /* The netplay profile is delay-sync only until rollback and state restore have
  * been verified with the game's separate player/gadget contexts. */
@@ -144,6 +145,7 @@ static void reset_host_state(void) {
     g_p2_area = 0u;
     g_p2_initialized = 0;
     g_in_p2_update = 0;
+    g_allow_keyboard_fallback = 0;
 }
 
 static void activate_two_spikes(void) {
@@ -355,7 +357,9 @@ static uint16_t keyboard_buttons(const bool *keys, int key_count) {
 static void prepare_second_pad(void) {
     uint8_t axes[4] = {0x80u, 0x80u, 0x80u, 0x80u};
     int key_count = 0;
-    const bool *keys = SDL_GetKeyboardState(&key_count);
+    const bool *keys = 0;
+    if (g_allow_keyboard_fallback)
+        keys = SDL_GetKeyboardState(&key_count);
     uint16_t active_sio_buttons =
         (uint16_t)~sio_get_pad_buttons_slot(1);
     uint16_t game_buttons =
@@ -423,7 +427,7 @@ static void prepare_second_pad(void) {
     update_pad_history(newly_pressed);
 }
 
-static void second_spike_update(struct CPUState *cpu, uint32_t address) {
+static void second_spike_update_impl(struct CPUState *cpu, uint32_t address) {
     uint32_t p1_spike[WORD_COUNT(SPIKE_BYTES)];
     uint32_t p1_pad[WORD_COUNT(PAD_BYTES)];
     uint8_t p1_camera[CAMERA_BYTES];
@@ -503,6 +507,20 @@ static void second_spike_update(struct CPUState *cpu, uint32_t address) {
     psx_mod_counter_add("ape.coop.two-spikes.p2_updates", 1u);
 }
 
+static void second_spike_update_offline(struct CPUState *cpu,
+                                           uint32_t address) {
+    g_allow_keyboard_fallback = 1;
+    second_spike_update_impl(cpu, address);
+}
+
+static void second_spike_update_netplay(struct CPUState *cpu,
+                                        uint32_t address) {
+    /* Online input must arrive through the synchronized Player 2 SIO slot;
+       do not sample a local SDL keyboard here after the netplay tick latches. */
+    g_allow_keyboard_fallback = 0;
+    second_spike_update_impl(cpu, address);
+}
+
 static int route_second_spike_collision(struct CPUState *cpu,
                                         uint32_t address) {
     (void)address;
@@ -524,7 +542,7 @@ PSX_MOD_CONSTRUCTOR(register_two_spike_prototype) {
     (void)psx_mod_register_activation_plugin(
         "ape.coop.two-spikes", activate_two_spikes);
     (void)psx_mod_register_function_entry_plugin(
-        "ape.coop.two-spikes", SPIKE_UPDATE_ADDRESS, second_spike_update);
+        "ape.coop.two-spikes", SPIKE_UPDATE_ADDRESS, second_spike_update_offline);
     (void)psx_mod_register_function_filter_plugin(
         "ape.coop.two-spikes-collision-filter", COLLISION_SET_ADDRESS,
         route_second_spike_collision);
@@ -533,7 +551,7 @@ PSX_MOD_CONSTRUCTOR(register_two_spike_prototype) {
        simulation hook as trusted game code and advertise the shared profile. */
     (void)psx_mod_register_netplay_profile(&g_two_spike_netplay_profile);
     (void)psx_game_register_netplay_function_entry(
-        SPIKE_UPDATE_ADDRESS, second_spike_update);
+        SPIKE_UPDATE_ADDRESS, second_spike_update_netplay);
     (void)psx_game_register_netplay_function_filter(
         COLLISION_SET_ADDRESS, route_second_spike_collision);
 }
