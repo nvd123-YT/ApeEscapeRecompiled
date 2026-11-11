@@ -98,9 +98,17 @@ endif()
 # recomp-net transport by default; pass -DAPE_ENABLE_NETPLAY=OFF for LAN-free
 # reference builds. PSX_MAX_PLAYERS also exposes the second SIO pad to P2.
 option(APE_ENABLE_NETPLAY "Build recomp-net online co-op support" ON)
+option(APE_ENABLE_NETPLAY_ICE "Build ICE NAT traversal for internet netplay" ON)
 set(PSX_MAX_PLAYERS 2 CACHE STRING "Ape Escape controller seat count" FORCE)
 set(PSX_NETPLAY ${APE_ENABLE_NETPLAY} CACHE BOOL
     "Enable the framework recomp-net integration" FORCE)
+if(APE_ENABLE_NETPLAY)
+    set(RNET_ENABLE_ICE ${APE_ENABLE_NETPLAY_ICE} CACHE BOOL
+        "Enable ICE connectivity for recomp-net" FORCE)
+else()
+    set(RNET_ENABLE_ICE OFF CACHE BOOL
+        "Enable ICE connectivity for recomp-net" FORCE)
+endif()
 
 include("${PSXRECOMP_ROOT}/runtime/runtime.cmake")
 
