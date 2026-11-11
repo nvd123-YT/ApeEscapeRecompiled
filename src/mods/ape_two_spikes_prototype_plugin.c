@@ -79,6 +79,8 @@ static uint16_t g_p2_area;
 static int g_p2_initialized;
 static int g_in_p2_update;
 static int g_allow_keyboard_fallback;
+static int g_p1_keyboard_enabled;
+static int g_p2_keyboard_enabled;
 
 /* The netplay profile is delay-sync only until rollback and state restore have
  * been verified with the game's separate player/gadget contexts. */
@@ -146,10 +148,24 @@ static void reset_host_state(void) {
     g_p2_initialized = 0;
     g_in_p2_update = 0;
     g_allow_keyboard_fallback = 0;
+    g_p1_keyboard_enabled = 0;
+    g_p2_keyboard_enabled = 0;
+}
+
+static int read_keyboard_option(const char *option_id) {
+    char value[8] = {0};
+    if (!psx_mod_option_value("ape.enhancement.two-spikes-prototype",
+                              "two-spike-preview", option_id, value,
+                              sizeof(value))) {
+        return 0;
+    }
+    return value[0] == 't' || value[0] == '1';
 }
 
 static void activate_two_spikes(void) {
     reset_host_state();
+    g_p1_keyboard_enabled = read_keyboard_option("p1-keyboard");
+    g_p2_keyboard_enabled = read_keyboard_option("p2-keyboard");
     g_p2_storage = psx_mod_alloc_guest_memory(P2_STORAGE_BYTES, 16u);
     if (g_p2_storage == 0u) {
         psx_mod_counter_add("ape.coop.two-spikes.allocation_failed", 1u);
@@ -295,20 +311,22 @@ static uint16_t write_stick_direction(int8_t stick_x, int8_t stick_y,
                       (STICK_MAX_MAGNITUDE - STICK_DEADZONE));
 }
 
-static void update_pad_history(uint32_t newly_pressed) {
+static void update_pad_history(uint32_t pad_address,
+                                uint32_t newly_pressed) {
     uint32_t history_index =
-        psx_mod_read_word(PAD_ADDRESS + PAD_HISTORY_INDEX_OFFSET);
+        psx_mod_read_word(pad_address + PAD_HISTORY_INDEX_OFFSET);
     uint32_t button;
 
+    /* Ape stores 40 u16 button IDs in its recent-input ring. */
     for (button = 1u; button <= UINT32_C(0x8000); button <<= 1) {
         if ((newly_pressed & button) != 0u) {
             uint32_t slot = history_index % PAD_HISTORY_COUNT;
-            psx_mod_write_word(PAD_ADDRESS + PAD_HISTORY_OFFSET + slot * 4u,
-                               button);
+            psx_mod_write_half(pad_address + PAD_HISTORY_OFFSET + slot * 2u,
+                               (uint16_t)button);
             ++history_index;
         }
     }
-    psx_mod_write_word(PAD_ADDRESS + PAD_HISTORY_INDEX_OFFSET, history_index);
+    psx_mod_write_word(pad_address + PAD_HISTORY_INDEX_OFFSET, history_index);
 }
 
 static int keyboard_key_down(const bool *keys, int key_count,
@@ -358,7 +376,7 @@ static void prepare_second_pad(void) {
     uint8_t axes[4] = {0x80u, 0x80u, 0x80u, 0x80u};
     int key_count = 0;
     const bool *keys = 0;
-    if (g_allow_keyboard_fallback)
+    if (g_allow_keyboard_fallback && g_p2_keyboard_enabled)
         keys = SDL_GetKeyboardState(&key_count);
     uint16_t active_sio_buttons =
         (uint16_t)~sio_get_pad_buttons_slot(1);
@@ -424,7 +442,98 @@ static void prepare_second_pad(void) {
     psx_mod_write_half(PAD_ADDRESS + PAD_MAGL_OFFSET, left_magnitude);
     psx_mod_write_half(PAD_ADDRESS + PAD_MAGR_OFFSET, right_magnitude);
 
-    update_pad_history(newly_pressed);
+    update_pad_history(PAD_ADDRESS, newly_pressed);
+}
+
+static uint16_t first_player_keyboard_buttons(const bool *keys,
+                                                  int key_count) {
+    uint16_t buttons = 0u;
+
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_Z))
+        buttons |= 0x0040u; /* Cross */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_X))
+        buttons |= 0x0020u; /* Circle */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_C))
+        buttons |= 0x0080u; /* Square */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_V))
+        buttons |= 0x0010u; /* Triangle */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_Q))
+        buttons |= 0x0004u; /* L1 */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_E))
+        buttons |= 0x0008u; /* R1 */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_R))
+        buttons |= 0x0001u; /* L2 */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_B))
+        buttons |= 0x0002u; /* R2 */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_TAB))
+        buttons |= 0x0100u; /* Select */
+    if (keyboard_key_down(keys, key_count, SDL_SCANCODE_SPACE))
+        buttons |= 0x0800u; /* Start */
+
+    return buttons;
+}
+
+static void apply_first_player_keyboard(void) {
+    int key_count = 0;
+    const bool *keys = SDL_GetKeyboardState(&key_count);
+    uint32_t held =
+        psx_mod_read_word(PAD_ADDRESS + PAD_HELD_OFFSET);
+    uint32_t newly_pressed;
+    uint16_t keyboard_held = first_player_keyboard_buttons(keys, key_count);
+    int8_t left_x =
+        (int8_t)psx_mod_read_byte(PAD_ADDRESS + PAD_RAW_STICK_X_OFFSET);
+    int8_t left_y =
+        (int8_t)psx_mod_read_byte(PAD_ADDRESS + PAD_RAW_STICK_Y_OFFSET);
+    int8_t right_x =
+        (int8_t)psx_mod_read_byte(PAD_ADDRESS + PAD_RIGHT_STICK_OFFSET);
+    int8_t right_y =
+        (int8_t)psx_mod_read_byte(PAD_ADDRESS + PAD_RIGHT_STICK_OFFSET + 1u);
+    int8_t key_left_x =
+        keyboard_axis(keys, key_count, SDL_SCANCODE_A, SDL_SCANCODE_D);
+    int8_t key_left_y =
+        keyboard_axis(keys, key_count, SDL_SCANCODE_W, SDL_SCANCODE_S);
+    int8_t key_right_x =
+        keyboard_axis(keys, key_count, SDL_SCANCODE_F, SDL_SCANCODE_H);
+    int8_t key_right_y =
+        keyboard_axis(keys, key_count, SDL_SCANCODE_T, SDL_SCANCODE_G);
+    uint32_t pressed;
+    uint16_t magnitude;
+
+    if (key_left_x != 0 || key_left_y != 0) {
+        if (key_left_x != 0)
+            left_x = key_left_x;
+        if (key_left_y != 0)
+            left_y = key_left_y;
+        psx_mod_write_byte(PAD_ADDRESS + PAD_RAW_STICK_X_OFFSET,
+                           (uint8_t)left_x);
+        psx_mod_write_byte(PAD_ADDRESS + PAD_RAW_STICK_Y_OFFSET,
+                           (uint8_t)left_y);
+        psx_mod_write_half(PAD_ADDRESS + PAD_LEFT_STICK_OFFSET,
+                           pack_stick_axes(left_x, left_y));
+        magnitude = write_stick_direction(
+            left_x, left_y, PAD_ADDRESS + PAD_DIRL_OFFSET);
+        psx_mod_write_half(PAD_ADDRESS + PAD_MAGL_OFFSET, magnitude);
+    }
+
+    if (key_right_x != 0 || key_right_y != 0) {
+        if (key_right_x != 0)
+            right_x = key_right_x;
+        if (key_right_y != 0)
+            right_y = key_right_y;
+        psx_mod_write_half(PAD_ADDRESS + PAD_RIGHT_STICK_OFFSET,
+                           pack_stick_axes(right_x, right_y));
+        magnitude = write_stick_direction(
+            right_x, right_y, PAD_ADDRESS + PAD_DIRR_OFFSET);
+        psx_mod_write_half(PAD_ADDRESS + PAD_MAGR_OFFSET, magnitude);
+    }
+
+    newly_pressed = (uint32_t)keyboard_held & ~held;
+    pressed = psx_mod_read_word(PAD_ADDRESS + PAD_PRESSED_OFFSET);
+    psx_mod_write_word(PAD_ADDRESS + PAD_HELD_OFFSET,
+                       held | (uint32_t)keyboard_held);
+    psx_mod_write_word(PAD_ADDRESS + PAD_PRESSED_OFFSET,
+                       pressed | newly_pressed);
+    update_pad_history(PAD_ADDRESS, newly_pressed);
 }
 
 static void second_spike_update_impl(struct CPUState *cpu, uint32_t address) {
@@ -511,6 +620,8 @@ static void second_spike_update_offline(struct CPUState *cpu,
                                            uint32_t address) {
     g_allow_keyboard_fallback = 1;
     second_spike_update_impl(cpu, address);
+    if (cpu != 0 && normal_level_frame() && g_p1_keyboard_enabled)
+        apply_first_player_keyboard();
 }
 
 static void second_spike_update_netplay(struct CPUState *cpu,
